@@ -4,9 +4,13 @@ A click-through presenter for a ten-minute talk on CKB / Nervos, built with [Rem
 
 ## Controls
 
-- Click, Right arrow, or Space: next step or page. The animation plays, then holds.
-- Left arrow or Backspace: previous page, already settled, with no replay.
+- Click, Right arrow, Space, or mouse wheel down: next step or page. The animation plays, then holds.
+- Left arrow, Backspace, or mouse wheel up: previous step, already settled, with no replay.
 - F, or the Full screen button: enter or leave full screen.
+
+One wheel gesture moves one step. A trackpad's inertial tail is ignored, and a new gesture needs a short pause (about a quarter of a second). Horizontal scrolls and pinch-zoom are not treated as navigation.
+
+Once a step has finished playing and the talk is waiting for you, a faint red dot fades in under the page number. It disappears the moment you navigate, and it is not shown on the last step of the last page. It lives in the presenter chrome, outside the Remotion composition.
 
 ## Run locally
 
