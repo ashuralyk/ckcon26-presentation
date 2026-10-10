@@ -8,7 +8,7 @@ export const BEAT_FRAMES = 90;
  * A beat with one entry behaves like the old one-click beat.
  */
 export const STEPS: number[][] = [
-  [BEAT_FRAMES], // 1  Title
+  [70, 70], // 1  Title: the case file and one-line sentence settle and hold, then one click springs out the "why it exists" note
   [90, 70, 80], // 2  After RGB++: headline, curve + bull sticky, crowd + discovered sticky
   [90, 160, 100], // 3  But people go away: close-up + headline, crowd leaves (accelerating), because we were not ready
   [170, 75, 75, 75, 85, 80], // 4  Developer Journey Circle: headline + circle draws, Discover, Learn, Build, Success notes, pull back to all four

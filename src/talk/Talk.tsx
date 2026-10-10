@@ -149,7 +149,7 @@ const Patterns: React.FC = () => {
 };
 
 const TitleNote: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
-  const start = 50;
+  const start = stepStart(0, 1);
   if (frame < start) {
     return null;
   }
@@ -1671,26 +1671,10 @@ const CALC_MID = 1500;
 const CALC_JOIN_CONTRACT = CALC_MID - (CALC_CONTRACT.w + CALC_ASM.w) / 2 + CALC_CONTRACT.w / 2;
 const CALC_JOIN = {contract: CALC_JOIN_CONTRACT, asm: CALC_JOIN_CONTRACT + CALC_CONTRACT.w / 2 + CALC_ASM.w / 2};
 const CALC_FIGURE = {x: 2890, y: 6470};
-/** Bridge span: from the contract's right edge to the assembler's left edge. */
+/** Bridge: one flat ink deck from the contract's right edge to the assembler's left edge, on two plain posts. n = frames the deck takes to draw. */
 const BR = {a: 575, b: 2435, deck: 6330, n: 46};
-const BR_PW = (BR.b - BR.a) / BR.n;
-const BR_TOWERS = [900, 2100];
-const BR_TOP = 6080;
-const BR_CABLE_C = 6444;
-const brCableY = (x: number): number => {
-  const t = (x - BR_TOWERS[0]) / (BR_TOWERS[1] - BR_TOWERS[0]);
-  return (1 - t) * (1 - t) * BR_TOP + 2 * (1 - t) * t * BR_CABLE_C + t * t * BR_TOP;
-};
-const BR_HANGERS = Array.from({length: 15}, (_, i) => 960 + i * 77);
-const BR_CABLE = `M ${BR.a} ${BR.deck - 40} L ${BR_TOWERS[0]} ${BR_TOP} Q ${CALC_MID} ${BR_CABLE_C} ${BR_TOWERS[1]} ${BR_TOP} L ${BR.b} ${BR.deck - 40}`;
-const BR_WAVES = (() => {
-  const pts: string[] = [];
-  for (let x = BR.a; x <= BR.b; x += 30) {
-    pts.push(`${x} ${6488 + 6 * Math.sin(x / 30)}`);
-  }
-  return `M ${pts.join(" L ")}`;
-})();
-const BR_MEASURE_Y = 6560;
+const BR_Y = BR.deck + 11;
+const BR_POSTS = [1000, 2000];
 /** Step 6: hand-drawn loop (page 4/10 style, slightly over one turn) around the merged pair, and its Monorepo tag. */
 const MONO_LOOP_PTS = Array.from({length: 97}, (_, k) => {
   const t = (k / 96) * 1.08;
@@ -1865,11 +1849,8 @@ const Calculators: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   // Step 3: the bridge builds plank by plank, then piers, towers, cables, measure, tag.
   const built = linear(frame, s3 + 4, s3 + 4 + BR.n, 0, 1);
   const railEnd = BR.a + (BR.b - BR.a) * built;
-  const piers = linear(frame, s3 + 50, s3 + 60, 0, 1);
-  const towers = linear(frame, s3 + 52, s3 + 64, 0, 1);
-  const cable = interpolate(frame, [s3 + 60, s3 + 82], [0, 1], {...clamp, easing: Easing.inOut(Easing.quad)});
-  const measure = interpolate(frame, [s3 + 72, s3 + 92], [0, 1], {...clamp, easing: Easing.out(Easing.cubic)});
-  const tagP = slam(frame, fps, s3 + 92, 0);
+  const posts = interpolate(frame, [s3 + 4 + BR.n, s3 + 4 + BR.n + 12], [0, 1], {...clamp, easing: Easing.out(Easing.cubic)});
+  const tagP = slam(frame, fps, s3 + 70, 0);
   const debris = fallAll >= 0 ? {dy: 0.9 * fallAll * fallAll, op: 1 - linear(fallAll, 0, 24, 0, 1)} : {dy: 0, op: 1};
   const burst = it >= 0 ? linear(frame, impactAt, impactAt + 16, 0, 1) : 0;
   // Wrecking plate.
@@ -1883,87 +1864,45 @@ const Calculators: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
       {bridgeVisible ? (
         <svg width={1} height={1} style={{position: "absolute", left: 0, top: 0, overflow: "visible"}}>
           <g transform={`translate(${shake} 0)`}>
-            <g opacity={debris.op} transform={`translate(0 ${debris.dy * 0.6})`}>
-              <path d={BR_WAVES} fill="none" stroke={INK} strokeWidth={2.5} opacity={0.3 * piers} />
-              {[0, 1, 2].map((k) => (
-                <path key={k} d={BR_WAVES} transform={`translate(${40 * k - 40} ${18 + k * 14})`} fill="none" stroke={INK} strokeWidth={1.6} opacity={0.16 * piers} />
-              ))}
-              {[1050, 1950].map((x) => (
-                <g key={x} transform={`translate(${x} ${BR.deck + 22}) scale(1 ${piers})`}>
-                  <path d="M -22 0 L 22 0 L 40 150 L -40 150 Z" fill={FOLDER} stroke={INK} strokeWidth={3} />
-                  {[30, 60, 90, 120].map((y) => (
-                    <line key={y} x1={-22 - y * 0.12} y1={y} x2={22 + y * 0.12} y2={y} stroke={INK} strokeWidth={1.4} opacity={0.4} />
-                  ))}
-                </g>
-              ))}
-              {BR_TOWERS.map((x) => (
-                <g key={x} transform={`translate(${x} ${BR.deck + 22}) scale(1 ${towers})`}>
-                  <rect x={-10} y={BR_TOP - BR.deck - 22} width={20} height={BR.deck + 22 - BR_TOP} fill={INK} />
-                  <rect x={-18} y={BR_TOP - BR.deck - 30} width={36} height={12} fill={INK} />
-                </g>
-              ))}
-              {cable > 0 ? (
-                <>
-                  <path d={BR_CABLE} fill="none" stroke={INK} strokeWidth={5} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - cable} />
-                  {BR_HANGERS.map((x, i) =>
-                    cable > (x - BR.a) / (BR.b - BR.a) ? (
-                      <line key={i} x1={x} y1={brCableY(x)} x2={x} y2={BR.deck - 40} stroke={INK} strokeWidth={2} opacity={0.7} />
-                    ) : null,
-                  )}
-                </>
-              ) : null}
-              <line x1={BR.a + 16} y1={BR.deck - 58} x2={Math.max(BR.a + 16, railEnd + 16)} y2={BR.deck - 58} stroke={INK} strokeWidth={3} opacity={0.35} />
-              <line x1={BR.a} y1={BR.deck - 40} x2={railEnd} y2={BR.deck - 40} stroke={INK} strokeWidth={5} strokeLinecap="round" />
-              {Array.from({length: BR.n / 2 + 1}, (_, i) => BR.a + i * BR_PW * 2).map((x) =>
-                x <= railEnd + 1 ? (
-                  <g key={x}>
-                    <line x1={x + 16} y1={BR.deck - 58} x2={x + 8} y2={BR.deck - 6} stroke={INK} strokeWidth={2} opacity={0.35} />
-                    <line x1={x} y1={BR.deck - 40} x2={x} y2={BR.deck} stroke={INK} strokeWidth={4} />
-                  </g>
-                ) : null,
-              )}
-              <rect x={BR.a} y={BR.deck + 22} width={Math.max(0, railEnd - BR.a)} height={9} fill={INK} opacity={0.3} />
-              {measure > 0 ? (
-                <g opacity={0.75}>
-                  <line x1={BR.a} y1={BR_MEASURE_Y} x2={BR.a + (BR.b - BR.a) * measure} y2={BR_MEASURE_Y} stroke={INK} strokeWidth={2.5} />
-                  {Array.from({length: 21}, (_, i) => BR.a + ((BR.b - BR.a) * i) / 20).map((x, i) =>
-                    x <= BR.a + (BR.b - BR.a) * measure + 1 ? (
-                      <line key={i} x1={x} y1={BR_MEASURE_Y - (i % 5 === 0 ? 18 : 9)} x2={x} y2={BR_MEASURE_Y + (i % 5 === 0 ? 18 : 9)} stroke={INK} strokeWidth={i % 5 === 0 ? 3 : 1.8} />
-                    ) : null,
-                  )}
-                  <path d={`M ${BR.a + 22} ${BR_MEASURE_Y - 12} L ${BR.a + 2} ${BR_MEASURE_Y} L ${BR.a + 22} ${BR_MEASURE_Y + 12}`} fill="none" stroke={INK} strokeWidth={3} strokeLinecap="round" />
-                  {measure >= 1 ? (
-                    <path d={`M ${BR.b - 22} ${BR_MEASURE_Y - 12} L ${BR.b - 2} ${BR_MEASURE_Y} L ${BR.b - 22} ${BR_MEASURE_Y + 12}`} fill="none" stroke={INK} strokeWidth={3} strokeLinecap="round" />
-                  ) : null}
-                </g>
-              ) : null}
-            </g>
-            {Array.from({length: BR.n}, (_, i) => {
-              const x = BR.a + i * BR_PW;
-              const at = s3 + 4 + i;
-              if (frame < at) {
-                return null;
-              }
-              const drop = -24 * (1 - linear(frame, at, at + 5, 0, 1));
-              const ft = it - Math.abs(x + BR_PW / 2 - CALC_MID) / 45;
-              const fy = ft > 0 ? 1.1 * ft * ft : 0;
-              const fr = ft > 0 ? (x < CALC_MID ? -1 : 1) * ft * 5 : 0;
-              const fo = ft > 0 ? 1 - linear(ft, 0, 22, 0, 1) : 1;
-              if (fo <= 0) {
-                return null;
-              }
+            {BR_POSTS.map((x, i) => {
+              const sway = it >= 0 ? (i === 0 ? -1 : 1) * it * 0.8 : 0;
               return (
-                <rect
-                  key={i}
-                  x={x + 2}
-                  y={BR.deck + drop + fy}
-                  width={BR_PW - 4}
-                  height={22}
-                  fill={FOLDER}
+                <line
+                  key={x}
+                  x1={x}
+                  y1={BR_Y + 6}
+                  x2={x}
+                  y2={BR_Y + 6 + 170 * posts}
                   stroke={INK}
-                  strokeWidth={2.5}
-                  opacity={fo}
-                  transform={fr ? `rotate(${fr} ${x + BR_PW / 2} ${BR.deck + 11 + fy})` : undefined}
+                  strokeWidth={9}
+                  strokeLinecap="round"
+                  opacity={debris.op}
+                  transform={`translate(0 ${debris.dy * 0.9}) rotate(${sway} ${x} ${BR_Y + 6})`}
+                />
+              );
+            })}
+            {/* The deck draws left to right; on impact it splits at the middle and both halves fall. */}
+            {[0, 1].map((side) => {
+              const x0 = side === 0 ? BR.a : CALC_MID;
+              const x1 = side === 0 ? CALC_MID : BR.b;
+              const end = Math.min(x1, Math.max(x0, railEnd));
+              if (end <= x0) {
+                return null;
+              }
+              const turn = it >= 0 ? (side === 0 ? 1 : -1) * 0.07 * it * it : 0;
+              const pivot = side === 0 ? BR.a : BR.b;
+              return (
+                <line
+                  key={side}
+                  x1={x0}
+                  y1={BR_Y}
+                  x2={end}
+                  y2={BR_Y}
+                  stroke={INK}
+                  strokeWidth={14}
+                  strokeLinecap="butt"
+                  opacity={debris.op}
+                  transform={`translate(0 ${debris.dy * 0.5}) rotate(${turn} ${pivot} ${BR_Y})`}
                 />
               );
             })}
@@ -1981,12 +1920,12 @@ const Calculators: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
           </g>
         </svg>
       ) : null}
-      {frame >= s3 + 92 && (it < 0 || debris.op > 0) ? (
+      {frame >= s3 + 70 && (it < 0 || debris.op > 0) ? (
         <div
           style={{
             position: "absolute",
             left: CALC_MID + shake,
-            top: BR.deck + 31 + (it >= 0 ? 1.2 * it * it : 0),
+            top: BR_Y + 7 + (it >= 0 ? 1.2 * it * it : 0),
             width: 0,
             height: 0,
             transform: `rotate(${(it >= 0 ? it * 9 : 0) + 3 * Math.sin((frame - s3) / 9)}deg)`,
