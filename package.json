@@ -19,6 +19,7 @@
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.7",
     "@types/web": "0.0.166",
+    "esbuild": "^0.28.1",
     "eslint": "9.39.5",
     "prettier": "3.8.1",
     "typescript": "5.9.3"
@@ -28,7 +29,8 @@
     "build": "remotion bundle",
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc",
-    "present": "node present/serve.mjs"
+    "present": "node present/serve.mjs",
+    "build:static": "node present/build-static.mjs"
   },
   "sideEffects": [
     "*.css"

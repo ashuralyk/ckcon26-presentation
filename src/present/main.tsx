@@ -2,7 +2,7 @@ import {Player, type PlayerRef} from "@remotion/player";
 import React, {useEffect, useRef, useState} from "react";
 import {createRoot} from "react-dom/client";
 import {Talk} from "../talk/Talk";
-import {BEAT_COUNT, BEAT_FRAMES, FPS, TOTAL_FRAMES} from "../talk/timing";
+import {FPS, STOPS, TOTAL_FRAMES} from "../talk/timing";
 
 const fit = (): {w: number; h: number} => {
   const maxW = window.innerWidth;
@@ -20,9 +20,10 @@ const fit = (): {w: number; h: number} => {
 const Presenter: React.FC = () => {
   const playerRef = useRef<PlayerRef>(null);
   const shellRef = useRef<HTMLDivElement>(null);
-  const beatRef = useRef(0);
+  // Index into STOPS. A stop is one click: a beat's step.
+  const stopRef = useRef(0);
   const modeRef = useRef<"play" | "settle">("play");
-  const [beat, setBeat] = useState(0);
+  const [stop, setStop] = useState(0);
   const [full, setFull] = useState(false);
   const [size, setSize] = useState(fit);
 
@@ -52,11 +53,12 @@ const Presenter: React.FC = () => {
       return;
     }
     const onFrame = (event: {detail: {frame: number}}) => {
-      const end = beatRef.current * BEAT_FRAMES + BEAT_FRAMES - 1;
-      if (event.detail.frame >= end) {
+      // Hold at the end of the current step. Never roll into the next one on our own.
+      const hold = STOPS[stopRef.current].hold;
+      if (event.detail.frame >= hold) {
         player.pause();
-        if (event.detail.frame > end) {
-          player.seekTo(end);
+        if (event.detail.frame > hold) {
+          player.seekTo(hold);
         }
       }
     };
@@ -71,43 +73,46 @@ const Presenter: React.FC = () => {
     if (!player) {
       return;
     }
-    const start = beat * BEAT_FRAMES;
-    const end = start + BEAT_FRAMES - 1;
+    const target = STOPS[stop];
     if (modeRef.current === "settle") {
+      // Land on the step already settled. No replay.
       player.pause();
-      player.seekTo(end);
+      player.seekTo(target.hold);
       return;
     }
-    player.seekTo(start);
+    player.seekTo(target.start);
     player.play();
-  }, [beat]);
+  }, [stop]);
 
   const advance = () => {
     const player = playerRef.current;
     if (!player) {
       return;
     }
-    const start = beatRef.current * BEAT_FRAMES;
-    if (player.getCurrentFrame() <= start && !player.isPlaying()) {
+    const current = STOPS[stopRef.current];
+    // Autoplay was blocked: play this step instead of skipping it.
+    if (player.getCurrentFrame() <= current.start && !player.isPlaying()) {
       player.play();
       return;
     }
-    if (beatRef.current >= BEAT_COUNT - 1) {
+    if (stopRef.current >= STOPS.length - 1) {
       return;
     }
-    beatRef.current += 1;
+    // Next step of this beat, or the next beat's step 0 (which carries the camera glide).
+    stopRef.current += 1;
     modeRef.current = "play";
-    setBeat(beatRef.current);
+    setStop(stopRef.current);
   };
 
   const back = () => {
     const player = playerRef.current;
-    if (!player || beatRef.current <= 0) {
+    if (!player || stopRef.current <= 0) {
       return;
     }
-    beatRef.current -= 1;
+    // One step back; from step 0 this lands on the previous beat's last step.
+    stopRef.current -= 1;
     modeRef.current = "settle";
-    setBeat(beatRef.current);
+    setStop(stopRef.current);
   };
 
   const toggleFull = () => {

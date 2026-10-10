@@ -3,7 +3,7 @@ import React from "react";
 import {Composition} from "remotion";
 import {StickyBoard} from "./scenes/StickyBoard";
 import {Talk} from "./talk/Talk";
-import {BEAT_COUNT, BEAT_FRAMES, FPS, TOTAL_FRAMES} from "./talk/timing";
+import {BEAT_COUNT, FPS, TOTAL_FRAMES, beatLength} from "./talk/timing";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -31,7 +31,7 @@ export const RemotionRoot: React.FC = () => {
             key={id}
             id={id}
             component={Talk}
-            durationInFrames={BEAT_FRAMES}
+            durationInFrames={beatLength(index)}
             fps={FPS}
             width={1920}
             height={1080}

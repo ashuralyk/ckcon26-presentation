@@ -1,6 +1,6 @@
 import {Easing, interpolate, spring} from "remotion";
-import {CAMERAS, type Cam} from "./stage";
-import {beatOf, beatStart} from "./timing";
+import {CAMERAS, STEP_CAMERAS, type Cam} from "./stage";
+import {beatOf, stepOf, stepStart} from "./timing";
 
 const GLIDE_FRAMES = 32;
 
@@ -11,14 +11,24 @@ export const glide = (local: number): number =>
     easing: Easing.inOut(Easing.cubic),
   });
 
+const stopCam = (beat: number, step: number): Cam =>
+  STEP_CAMERAS[beat]?.[step] ?? CAMERAS[beat];
+
+const lastCam = (beat: number): Cam => {
+  const list = STEP_CAMERAS[beat];
+  return list ? list[list.length - 1] : CAMERAS[beat];
+};
+
+/** Glides at every step start toward that step's target; a no-op when the target does not change. */
 export const cameraAt = (frame: number): Cam => {
   const beat = beatOf(frame);
-  const to = CAMERAS[beat];
-  if (beat === 0) {
+  const step = stepOf(frame);
+  const to = stopCam(beat, step);
+  if (beat === 0 && step === 0) {
     return to;
   }
-  const from = CAMERAS[beat - 1];
-  const t = glide(frame - beatStart(beat));
+  const from = step > 0 ? stopCam(beat, step - 1) : lastCam(beat - 1);
+  const t = glide(frame - stepStart(beat, step));
   return {
     x: from.x + (to.x - from.x) * t,
     y: from.y + (to.y - from.y) * t,
