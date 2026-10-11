@@ -58,194 +58,33 @@ export const Talk: React.FC<TalkProps> = ({onlyBeat, idle = 0}) => {
   );
 };
 
-/** Beat 17: Lowering the threshold of CKB. A fine ruled line at a tall height drops to the desk bottom. Screen coords + CN_O. */
-const CN_O = {x: 2340, y: 10060};
-const CN_LINE = {x0: 210, x1: 1770, high: 262, low: 772};
-const CN_RULER = {x: 112, top: 196, bottom: 852, step: 32};
-const CN_TAG_X = 440;
-const CN_PLATE_X = 1640;
-const CN_STICKY = {x: 1080, y: 450};
-const CN_WALK_X = 1230;
-
-const Conclusion: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
-  const idleF = useIdle();
-  const at = beatStart(16);
-  const next = beatStart(17);
-  if (frame < at || frame >= next + 34) {
-    return null;
-  }
-  const s1 = stepStart(16, 1);
-  const s2 = stepStart(16, 2);
-  const s3 = stepStart(16, 3);
-  const out = deskDrift(frame, next, {x: -1, y: -0.45});
-  const stickyOut = deskDrift(frame, next + 3, {x: 1, y: 0.5});
-  const O = CN_O;
-  const L = CN_LINE;
-  // Step 1: the ruler ticks in from the bottom up, the line draws left to right, end caps and the tag pop.
-  const draw = eased(frame, s1 + 8, s1 + 52);
-  const tagP = slam(frame, fps, s1, 56);
-  const capP = slam(frame, fps, s1, 50);
-  // Step 2: the plate settles on the line's right end, then the line glides steadily down.
-  const plateP = slam(frame, fps, s2, 4);
-  const drop = interpolate(frame, [s2 + 34, s2 + 100], [0, 1], {extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.sin)});
-  // Step 3: the low line glows cinnabar red; the sticky lands.
-  const warm = eased(frame, s3, s3 + 26);
-  const stickyP = slam(frame, fps, s3, 8);
-  // Idle (all zero at idle 0): the line breathes, the glow pulses, one tiny figure steps over it.
-  const breathe = warm >= 1 ? 2.2 * Math.sin((2 * Math.PI * idleF) / 120) : 0;
-  const gp = warm >= 1 ? 0.5 - 0.5 * Math.cos((2 * Math.PI * idleF) / 96) : 0;
-  const lineY = L.high + (L.low - L.high) * drop + breathe;
-  const lineCol = interpolateColors(warm, [0, 1], [INK, CINNABAR]);
-  const glowA = warm * (0.16 + 0.12 * gp);
-  const ghostA = eased(frame, s2 + 34, s2 + 56) * 0.3;
-  const ticks = Math.round((CN_RULER.bottom - CN_RULER.top) / CN_RULER.step);
-  const lineX = L.x0 + (L.x1 - L.x0) * draw;
-  // The tiny walker: crosses the line from above to below (front view), then fades, every 170 frames.
-  const CYC = 170;
-  const wu = warm >= 1 && idleF > 0 ? (idleF % CYC) / CYC : 0;
-  const wMove = interpolate(wu, [0.14, 0.8], [0, 1], {extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.inOut(Easing.sin)});
-  const wOp = wu <= 0 ? 0 : Math.min(1, wu / 0.1) * (1 - linear(wu, 0.84, 0.97, 0, 1));
-  const feetY = lineY - 96 + 190 * wMove;
-  const wPhase = wMove * Math.PI * 7;
-  const legLift = (dy: number) => 15 * Math.exp(-(((feetY - lineY - dy) / 26) ** 2));
-  const stride = (ph: number) => Math.max(0, Math.sin(ph)) * 7;
-  const wScale = 0.9 + 0.2 * wMove;
-  return (
-    <div style={{position: "absolute", left: 0, top: 0}}>
-      <div style={cssDrift(out, O.x + 960, O.y + 540)}>
-        <svg width={1} height={1} style={{position: "absolute", left: 0, top: 0, overflow: "visible"}}>
-          {/* Faint rule lines at the major ticks: a subtle emphasis of the desk grid. */}
-          {Array.from({length: ticks + 1}, (_, i) => i).map((i) => {
-            const y = CN_RULER.bottom - i * CN_RULER.step;
-            const a = linear(frame, s1 + i * 0.9, s1 + i * 0.9 + 10, 0, 1);
-            const major = i % 4 === 0;
-            return (
-              <g key={i} opacity={a}>
-                <line x1={O.x + CN_RULER.x - (major ? 24 : 12)} y1={O.y + y} x2={O.x + CN_RULER.x} y2={O.y + y} stroke={INK} strokeWidth={major ? 2.4 : 1.6} opacity={major ? 0.45 : 0.28} strokeLinecap="round" />
-                {major && i > 0 ? <line x1={O.x + CN_RULER.x + 8} y1={O.y + y} x2={O.x + L.x1 + 40} y2={O.y + y} stroke={INK} strokeWidth={1} opacity={0.07} strokeDasharray="2 10" /> : null}
-              </g>
-            );
-          })}
-          <line x1={O.x + CN_RULER.x} y1={O.y + CN_RULER.bottom} x2={O.x + CN_RULER.x} y2={O.y + CN_RULER.bottom - (CN_RULER.bottom - CN_RULER.top) * eased(frame, s1, s1 + 30)} stroke={INK} strokeWidth={2.2} opacity={0.45} strokeLinecap="round" />
-          {/* Ghost of the original height, with a dotted measure arrow showing the drop. */}
-          {ghostA > 0 ? (
-            <g opacity={ghostA / 0.3}>
-              <line x1={O.x + L.x0} y1={O.y + L.high} x2={O.x + L.x1} y2={O.y + L.high} stroke={INK} strokeWidth={2} opacity={0.3} strokeDasharray="14 10" strokeLinecap="round" />
-              <line x1={O.x + L.x0} y1={O.y + L.high - 9} x2={O.x + L.x0} y2={O.y + L.high + 9} stroke={INK} strokeWidth={2} opacity={0.3} strokeLinecap="round" />
-              <line x1={O.x + L.x1} y1={O.y + L.high - 9} x2={O.x + L.x1} y2={O.y + L.high + 9} stroke={INK} strokeWidth={2} opacity={0.3} strokeLinecap="round" />
-            </g>
-          ) : null}
-          {drop > 0 ? (
-            <g opacity={Math.min(1, drop * 4) * 0.8}>
-              <line x1={O.x + 236} y1={O.y + L.high + 6} x2={O.x + 236} y2={O.y + lineY - 12} stroke={INK} strokeWidth={2.6} strokeLinecap="round" strokeDasharray="1 9" />
-              <line x1={O.x + 222} y1={O.y + L.high} x2={O.x + 250} y2={O.y + L.high} stroke={INK} strokeWidth={2.2} strokeLinecap="round" opacity={0.6} />
-              <path d={`M ${O.x + 227} ${O.y + lineY - 22} L ${O.x + 236} ${O.y + lineY - 6} L ${O.x + 245} ${O.y + lineY - 22}`} fill="none" stroke={INK} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
-            </g>
-          ) : null}
-          {/* The threshold itself: a soft red glow under a fine ink line, with small end caps. */}
-          {draw > 0 ? (
-            <g>
-              {glowA > 0 ? (
-                <>
-                  <line x1={O.x + L.x0} y1={O.y + lineY} x2={O.x + L.x1} y2={O.y + lineY} stroke={CINNABAR} strokeWidth={34} strokeLinecap="round" opacity={glowA * 0.7} />
-                  <line x1={O.x + L.x0} y1={O.y + lineY} x2={O.x + L.x1} y2={O.y + lineY} stroke={CINNABAR} strokeWidth={14} strokeLinecap="round" opacity={glowA * 1.4} />
-                </>
-              ) : null}
-              <line x1={O.x + L.x0} y1={O.y + lineY} x2={O.x + lineX} y2={O.y + lineY} stroke={lineCol} strokeWidth={4} strokeLinecap="round" />
-              {capP > 0 ? (
-                <>
-                  <line x1={O.x + L.x0} y1={O.y + lineY - 14 * Math.min(1, capP)} x2={O.x + L.x0} y2={O.y + lineY + 14 * Math.min(1, capP)} stroke={lineCol} strokeWidth={4} strokeLinecap="round" />
-                  <line x1={O.x + L.x1} y1={O.y + lineY - 14 * Math.min(1, capP)} x2={O.x + L.x1} y2={O.y + lineY + 14 * Math.min(1, capP)} stroke={lineCol} strokeWidth={4} strokeLinecap="round" />
-                </>
-              ) : null}
-            </g>
-          ) : null}
-          {/* The tiny walker (idle only): front view, steps over the line, fades out. */}
-          {wOp > 0 ? (
-            <g transform={`translate(${O.x + CN_WALK_X} ${O.y + feetY}) scale(${wScale})`} opacity={wOp} stroke={INK} strokeLinecap="round" fill="none">
-              <line x1={-7} y1={-27} x2={-8} y2={-legLift(26) - 2 - stride(wPhase + Math.PI)} strokeWidth={9} />
-              <line x1={7} y1={-27} x2={8} y2={-legLift(-2) - 2 - stride(wPhase)} strokeWidth={9} />
-              <line x1={0} y1={-56} x2={0} y2={-26} strokeWidth={15} />
-              <line x1={-6} y1={-50} x2={-14} y2={-32 + 3 * Math.sin(wPhase)} strokeWidth={6} />
-              <line x1={6} y1={-50} x2={14} y2={-32 - 3 * Math.sin(wPhase)} strokeWidth={6} />
-              <circle cx={0} cy={-70} r={10} fill={INK} stroke="none" />
-            </g>
-          ) : null}
-        </svg>
-        {/* 'Threshold' tag: sits on the line and follows it down. */}
-        {tagP > 0.02 ? (
-          <div style={{position: "absolute", left: O.x + CN_TAG_X, top: O.y + lineY - 16, transform: `translate(-50%, -100%) translateY(${(1 - Math.min(1, tagP)) * -26}px) rotate(-1.5deg)`, opacity: Math.min(1, tagP * 2.5)}}>
-            <div style={{padding: "5px 14px 4px", background: CARD, border: `2.5px solid ${INK}`, fontFamily: MONO, fontWeight: 700, fontSize: 21, letterSpacing: "0.06em", color: INK, boxShadow: "0 4px 8px rgba(26,26,26,0.14)"}}>Threshold</div>
-            <div style={{position: "absolute", left: 18, bottom: -14, width: 2, height: 14, background: INK}} />
-            <div style={{position: "absolute", right: 18, bottom: -14, width: 2, height: 14, background: INK}} />
-          </div>
-        ) : null}
-        {/* The small CINNABAR name plate settles on the line's right end and rides down with it. */}
-        {plateP > 0.02 ? (
-          <div
-            style={{
-              position: "absolute",
-              left: O.x + CN_PLATE_X,
-              top: O.y + lineY - 8,
-              width: 196,
-              height: 58,
-              padding: 4,
-              boxSizing: "border-box",
-              borderRadius: 5,
-              background: FOIL,
-              boxShadow: "0 5px 10px rgba(26,26,26,0.2), 0 0 0 1px rgba(26,26,26,0.45)",
-              transform: `translate(-50%, -100%) translateY(${(1 - Math.min(1, plateP)) * -120}px) scale(${interpolate(plateP, [0, 1], [1.3, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"})}) rotate(-1deg)`,
-              opacity: Math.min(1, Math.max(0, plateP * 3)),
-            }}
-          >
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                borderRadius: 3,
-                background: "linear-gradient(160deg, #FFFCF3, #F2E9D3)",
-                boxShadow: "inset 0 2px 0 rgba(255,255,255,0.95), inset 0 -3px 6px rgba(120,80,20,0.2)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontFamily: SERIF,
-                fontWeight: 700,
-                fontSize: 27,
-                letterSpacing: "0.08em",
-                color: INK,
-                textShadow: "0 1px 0 rgba(255,255,255,0.9), 0 -1px 0 rgba(90,60,20,0.28)",
-              }}
-            >
-              <span style={{marginRight: "-0.08em"}}>CINNABAR</span>
-            </div>
-          </div>
-        ) : null}
-      </div>
-      {frame >= s3 + 8 ? (
-        <div style={cssDrift(stickyOut, O.x + CN_STICKY.x, O.y + CN_STICKY.y)}>
-          <BigNote x={O.x + CN_STICKY.x} y={O.y + CN_STICKY.y} width={780} tilt={-2} p={stickyP} size={52}>
-            As low as we can make it.
-          </BigNote>
-        </div>
-      ) : null}
-    </div>
-  );
-};
-
-/** Beat 18: How to use Cinnabar. A chat, the idea resolving into numbered steps, a Verification Tree and Tx Assemblers, a Confirm stamp. Screen coords + HT_O. */
-const HT_O = {x: 2340, y: 11260};
+/** Beat 17: How to use Cinnabar, as one AI chat window. Screen coords + HT_O. Thread coords are relative to the thread viewport. */
+const HT_O = {x: 2340, y: 10060};
 const HT_ASK = "Help me build a blind box project by using Spore protocol";
-const HT_CHIP_X = [990, 1220, 1450, 1680];
-const HT_TREE = {x: 970, y: 300, w: 350, h: 270};
+const HT_WIN = {x: 90, y: 78, w: 1740, h: 930, bar: 64, input: 100};
+const HT_VIEW = HT_WIN.h - HT_WIN.bar - HT_WIN.input;
+/** Message boxes in the thread: top, height. */
+const HT_M = {
+  m1: {y: 28, h: 132},
+  m2: {y: 188, h: 246},
+  m3: {y: 462, h: 330},
+  m4: {y: 820, h: 96},
+  m5: {y: 944, h: 170},
+};
+const HT_SCROLL3 = Math.max(0, HT_M.m3.y + HT_M.m3.h + 28 - HT_VIEW);
+const HT_SCROLL4 = Math.max(0, HT_M.m5.y + HT_M.m5.h + 28 - HT_VIEW);
+const HT_AI_X = 170;
+const HT_USER_R = HT_WIN.w - 36 - 58 - 18;
+const HT_CHIP_X = [28, 308, 588, 868];
+const HT_TREE = {x: 28, y: 28, w: 340, h: 274};
 const HT_ASM = [
-  {x: 1370, y: 300},
-  {x: 1620, y: 300},
-  {x: 1370, y: 430},
-  {x: 1620, y: 430},
+  {x: 400, y: 40},
+  {x: 640, y: 40},
+  {x: 400, y: 180},
+  {x: 640, y: 180},
 ];
-const HT_STAMP = {x: 1610, y: 626, w: 380, h: 132};
-const HT_STICKY = {x: 1128, y: 706};
-const HT_FLOW = {x0: 970, x1: 1760, y: 842, done: 1812};
+const HT_BTN = {x: 930, y: 118, w: 340, h: 92};
+const HT_FLOW = {x0: 40, x1: 700, y: 118, done: 768};
 
 const HtAvatar: React.FC = () => (
   <svg width={58} height={58} viewBox="0 0 58 58" style={{display: "block"}}>
@@ -280,51 +119,83 @@ const HtPlate: React.FC<{w: number; h: number; size: number}> = ({w, h, size}) =
 
 const HowTo: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   const idleF = useIdle();
-  const at = beatStart(17);
-  const next = beatStart(18);
+  const at = beatStart(16);
+  const next = beatStart(17);
   if (frame < at || frame >= next + 34) {
     return null;
   }
   const fi = frame + idleF;
-  const s1 = stepStart(17, 1);
-  const s2 = stepStart(17, 2);
-  const s3 = stepStart(17, 3);
-  const s4 = stepStart(17, 4);
-  const outL = deskDrift(frame, next, {x: -1, y: -0.3});
-  const outR = deskDrift(frame, next, {x: 1, y: -0.4});
-  const outS = deskDrift(frame, next + 3, {x: 0.3, y: 1});
-  // Step 1: the chat window, then the request types out.
+  const s1 = stepStart(16, 1);
+  const s2 = stepStart(16, 2);
+  const s3 = stepStart(16, 3);
+  const s4 = stepStart(16, 4);
+  const out = deskDrift(frame, next, {x: -1, y: -0.35});
+  const clampP = (v: number) => Math.min(1, Math.max(0, v));
+  const popStyle = (p: number, dy = 26): React.CSSProperties => ({
+    opacity: clampP(p * 2.5),
+    transform: `translateY(${(1 - Math.min(1, p)) * dy}px) scale(${interpolate(p, [0, 1], [0.94, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"})})`,
+  });
+  // The window, then the request typed into the input box and sent.
   const winP = slam(frame, fps, s1, 2);
-  const typed = Math.max(0, Math.min(HT_ASK.length, Math.floor((frame - (s1 + 30)) / 1.3)));
-  const askP = slam(frame, fps, s1, 22);
-  const cursorOn = frame < s2 && Math.floor(fi / 12) % 2 === 0;
-  // Step 2: Cinnabar replies; the cloud resolves into four crisp step chips joined by numbered arrows.
-  const dotsP = linear(frame, s2 + 2, s2 + 8, 0, 1) * (1 - linear(frame, s2 + 28, s2 + 32, 0, 1));
-  const replyP = slam(frame, fps, s2, 30);
-  const cloudIn = linear(frame, s2 + 36, s2 + 50, 0, 1) * (1 - linear(frame, s2 + 76, s2 + 112, 0, 1));
-  // Step 3: the Verification Tree and the Tx Assembler cards, a Confirm outline waiting.
-  const treeP = slam(frame, fps, s3, 4);
-  const waitP = linear(frame, s3 + 70, s3 + 90, 0, 1);
-  // Step 4: the stamp thumps, the sticky lands, the rest runs on its own.
-  const stampP = slam(frame, fps, s4, 4);
-  const shake = frame - (s4 + 8);
-  const shakeX = shake >= 0 && shake < 8 ? Math.sin(shake * 2.6) * 7 * (1 - shake / 8) : 0;
-  const shock = linear(frame, s4 + 6, s4 + 24, 0, 1);
-  const stickyP = slam(frame, fps, s4, 34);
-  const flowDraw = eased(frame, s4 + 36, s4 + 66);
-  const doneP = slam(frame, fps, s4, 66);
-  const flowStart = s4 + 62;
-  // Idle (zero at idle 0): chips keep flowing, the done mark pulses.
-  const gp = frame >= s4 + 100 ? 0.5 - 0.5 * Math.cos((2 * Math.PI * idleF) / 90) : 0;
+  const titleOn = linear(frame, s1 + 8, s1 + 20, 0, 1);
+  const typeAt = s1 + 20;
+  const typed = Math.max(0, Math.min(HT_ASK.length, Math.floor((frame - typeAt) / 1.15)));
+  const sendAt = typeAt + Math.ceil(HT_ASK.length * 1.15) + 6;
+  const sent = frame >= sendAt;
+  const sendPress = Math.sin(Math.PI * linear(frame, sendAt - 2, sendAt + 8, 0, 1));
+  const m1P = slam(frame, fps, sendAt, 4);
+  const cursorOn = Math.floor(fi / 12) % 2 === 0;
+  // Step 2: typing dots, then Cinnabar's reply with the cloud resolving into numbered steps.
+  const dots2 = linear(frame, s2 + 4, s2 + 10, 0, 1) * (1 - linear(frame, s2 + 34, s2 + 36, 0, 1));
+  const m2P = slam(frame, fps, s2, 36);
+  const cloudIn = linear(frame, s2 + 46, s2 + 58, 0, 1) * (1 - linear(frame, s2 + 82, s2 + 112, 0, 1));
+  // Step 3: typing dots, then the Verification Tree, Tx Assembler cards and a waiting Confirm button.
+  const dots3 = linear(frame, s3 + 2, s3 + 8, 0, 1) * (1 - linear(frame, s3 + 22, s3 + 24, 0, 1));
+  const m3P = slam(frame, fps, s3, 24);
+  const btnWait = linear(frame, s3 + 84, s3 + 100, 0, 1);
+  // Step 4: Confirm is pressed, the user's tick lands, Cinnabar answers and the rest runs on its own.
+  const press = Math.sin(Math.PI * linear(frame, s4 + 2, s4 + 14, 0, 1));
+  const pressed = frame >= s4 + 8;
+  const m4P = slam(frame, fps, s4, 20);
+  const shake = frame - (s4 + 24);
+  const shakeX = shake >= 0 && shake < 8 ? Math.sin(shake * 2.6) * 6 * (1 - shake / 8) : 0;
+  const shock = linear(frame, s4 + 22, s4 + 40, 0, 1);
+  const dots5 = linear(frame, s4 + 46, s4 + 52, 0, 1) * (1 - linear(frame, s4 + 66, s4 + 68, 0, 1));
+  const m5P = slam(frame, fps, s4, 68);
+  const stickerP = slam(frame, fps, s4, 84);
+  const flowDraw = eased(frame, s4 + 76, s4 + 100);
+  const doneP = slam(frame, fps, s4, 100);
+  const flowStart = s4 + 94;
+  const gp = frame >= s4 + 112 ? 0.5 - 0.5 * Math.cos((2 * Math.PI * idleF) / 90) : 0;
   const Wd = HT_FLOW.x1 - HT_FLOW.x0;
+  const scroll = HT_SCROLL3 * eased(frame, s3 + 14, s3 + 40) + (HT_SCROLL4 - HT_SCROLL3) * eased(frame, s4 + 10, s4 + 36);
   const cloudPath = "M 975 205 C 960 150, 1030 112, 1085 134 C 1120 98, 1200 104, 1225 140 C 1275 108, 1360 116, 1380 152 C 1430 112, 1520 120, 1535 160 C 1590 120, 1690 124, 1705 166 C 1760 130, 1850 150, 1850 205 C 1880 250, 1830 292, 1775 280 C 1730 312, 1650 308, 1620 280 C 1570 306, 1480 304, 1455 278 C 1410 306, 1330 304, 1300 278 C 1250 304, 1170 300, 1145 276 C 1100 298, 1020 292, 1010 262 C 960 262, 950 228, 975 205 Z";
-  const bar = (w: number, p: number) => (
-    <div style={{height: 11, width: w * Math.min(1, Math.max(0, p)), borderRadius: 6, background: INK, opacity: 0.5, marginTop: 14}} />
+  const bar = (x: number, y: number, w: number, p: number, o = 0.5) => (
+    <div style={{position: "absolute", left: x, top: y, height: 11, width: w * clampP(p), borderRadius: 6, background: INK, opacity: o}} />
+  );
+  const typingBubble = (y: number, p: number) =>
+    p > 0 ? (
+      <div style={{position: "absolute", left: 36, top: y, display: "flex", alignItems: "center", gap: 18, opacity: p}}>
+        <HtPlate w={116} h={40} size={15} />
+        <div style={{display: "flex", gap: 9, padding: "16px 22px", border: `2px solid ${INK}`, borderRadius: 22, background: "#FFFFFF"}}>
+          {[0, 1, 2].map((i) => (
+            <div key={i} style={{width: 12, height: 12, borderRadius: "50%", background: INK, opacity: 0.3 + 0.55 * Math.max(0, Math.sin(fi / 3 - i * 1.2))}} />
+          ))}
+        </div>
+      </div>
+    ) : null;
+  const aiBubble = (y: number, h: number, w: number, p: number, children: React.ReactNode) => (
+    <div style={{position: "absolute", left: 36, top: y, width: HT_AI_X + w - 36, height: h, ...popStyle(p)}}>
+      <div style={{position: "absolute", left: 0, top: 6}}>
+        <HtPlate w={116} h={40} size={15} />
+      </div>
+      <div style={{position: "absolute", left: HT_AI_X - 36, top: 0, width: w, height: h, boxSizing: "border-box", background: "#FBEFE9", border: `2.5px solid ${CINNABAR}`, borderRadius: "6px 24px 24px 24px"}}>{children}</div>
+    </div>
   );
   const asmCard = (k: number) => {
     const c = HT_ASM[k];
-    const p = slam(frame, fps, s3, 32 + k * 9);
-    if (frame < s3 + 32 + k * 9) {
+    const p = slam(frame, fps, s3, 40 + k * 8);
+    if (frame < s3 + 40 + k * 8) {
       return null;
     }
     return (
@@ -334,15 +205,15 @@ const HowTo: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
           position: "absolute",
           left: c.x,
           top: c.y,
-          width: 230,
+          width: 220,
           height: 110,
           boxSizing: "border-box",
           padding: "26px 16px 14px",
           background: CARD,
           border: `2px solid ${INK}`,
           boxShadow: "0 10px 18px rgba(26,26,26,0.14)",
-          transform: `translateY(${(1 - Math.min(1, p)) * -80}px) scale(${interpolate(p, [0, 1], [1.2, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"})}) rotate(${[-2, 1.5, 1.8, -1.5][k]}deg)`,
-          opacity: Math.min(1, Math.max(0, p * 3)),
+          transform: `translateY(${(1 - Math.min(1, p)) * -70}px) scale(${interpolate(p, [0, 1], [1.2, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"})}) rotate(${[-1.8, 1.4, 1.6, -1.4][k]}deg)`,
+          opacity: clampP(p * 3),
         }}
       >
         <div style={{position: "absolute", top: -11, left: "50%", width: 80, height: 20, marginLeft: -40, background: "rgba(255,255,255,0.62)", transform: `rotate(${k % 2 === 0 ? -3 : 2}deg)`}} />
@@ -355,282 +226,312 @@ const HowTo: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
       </div>
     );
   };
+  const treeP = slam(frame, fps, s3, 28);
   return (
     <div style={{position: "absolute", left: HT_O.x, top: HT_O.y}}>
-      {/* Left: the chat window. */}
       {winP > 0.02 ? (
-        <div style={cssDrift(outL, 450, 420)}>
+        <div style={cssDrift(out, HT_WIN.x + HT_WIN.w / 2, HT_WIN.y + HT_WIN.h / 2)}>
           <div
             style={{
               position: "absolute",
-              left: 70,
-              top: 120,
-              width: 770,
-              height: 600,
+              left: HT_WIN.x,
+              top: HT_WIN.y,
+              width: HT_WIN.w,
+              height: HT_WIN.h,
               boxSizing: "border-box",
               background: CARD,
               border: `2.5px solid ${INK}`,
-              borderRadius: 18,
-              boxShadow: "0 22px 40px rgba(26,26,26,0.14)",
-              transformOrigin: "50% 50%",
-              transform: `translateY(${(1 - Math.min(1, winP)) * -50}px) scale(${interpolate(winP, [0, 1], [0.92, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"})})`,
-              opacity: Math.min(1, Math.max(0, winP * 2.5)),
+              borderRadius: 20,
+              boxShadow: "0 24px 44px rgba(26,26,26,0.16)",
               overflow: "hidden",
+              transformOrigin: "50% 50%",
+              transform: `translateY(${(1 - Math.min(1, winP)) * -60}px) scale(${interpolate(winP, [0, 1], [0.94, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"})})`,
+              opacity: clampP(winP * 2.5),
             }}
           >
-            <div style={{height: 46, borderBottom: `2px solid ${INK}`, background: FOLDER, display: "flex", alignItems: "center", gap: 10, padding: "0 18px"}}>
+            {/* Title bar: the headline moves in here. */}
+            <div style={{position: "absolute", left: 0, top: 0, right: 0, height: HT_WIN.bar, borderBottom: `2px solid ${INK}`, background: FOLDER, display: "flex", alignItems: "center", gap: 12, padding: "0 26px"}}>
               {[0, 1, 2].map((i) => (
-                <div key={i} style={{width: 13, height: 13, borderRadius: "50%", border: `2px solid ${INK}`, background: i === 0 ? CINNABAR : "transparent"}} />
+                <div key={i} style={{width: 15, height: 15, borderRadius: "50%", border: `2px solid ${INK}`, background: i === 0 ? CINNABAR : "transparent"}} />
               ))}
+              <div style={{marginLeft: 20, fontFamily: SERIF, fontWeight: 700, fontSize: 34, letterSpacing: "-0.02em", color: INK, opacity: titleOn, whiteSpace: "nowrap"}}>How to use Cinnabar</div>
             </div>
-            {/* The request. */}
-            <div style={{position: "absolute", left: 28, top: 78, display: "flex", gap: 18, alignItems: "flex-start", opacity: Math.min(1, askP * 2.5)}}>
-              <HtAvatar />
-              <div style={{width: 610, minHeight: 138, boxSizing: "border-box", padding: "18px 24px", background: "#FFFFFF", border: `2.5px solid ${INK}`, borderRadius: "6px 22px 22px 22px", fontFamily: SANS, fontWeight: 600, fontSize: 33, lineHeight: 1.3, color: INK}}>
-                <span>{HT_ASK.slice(0, typed)}</span>
-                <span style={{display: "inline-block", width: 3, height: 34, marginLeft: 2, verticalAlign: "-6px", background: CINNABAR, opacity: cursorOn && typed > 0 ? 1 : 0}} />
-                <span style={{visibility: "hidden"}}>{HT_ASK.slice(typed)}</span>
+            {/* The thread. */}
+            <div style={{position: "absolute", left: 0, right: 0, top: HT_WIN.bar, height: HT_VIEW, overflow: "hidden"}}>
+              <div style={{position: "absolute", left: 0, top: 0, width: HT_WIN.w, transform: `translateY(${-scroll}px)`}}>
+                {/* M1: the user's request. */}
+                {sent ? (
+                  <div style={{position: "absolute", left: 0, top: HT_M.m1.y, width: HT_WIN.w, height: HT_M.m1.h, ...popStyle(m1P)}}>
+                    <div style={{position: "absolute", left: HT_USER_R + 18, top: 0}}>
+                      <HtAvatar />
+                    </div>
+                    <div style={{position: "absolute", left: HT_USER_R - 820, top: 0, width: 820, height: HT_M.m1.h, boxSizing: "border-box", padding: "20px 28px", background: "#FFFFFF", border: `2.5px solid ${INK}`, borderRadius: "24px 6px 24px 24px", fontFamily: SANS, fontWeight: 600, fontSize: 36, lineHeight: 1.3, color: INK}}>
+                      {HT_ASK}
+                    </div>
+                  </div>
+                ) : null}
+                {/* M2: Cinnabar's reply with the idea resolving into numbered steps. */}
+                {typingBubble(HT_M.m2.y, dots2)}
+                {frame >= s2 + 36
+                  ? aiBubble(
+                      HT_M.m2.y,
+                      HT_M.m2.h,
+                      1130,
+                      m2P,
+                      <>
+                        {bar(28, 34, 540, linear(frame, s2 + 42, s2 + 58, 0, 1))}
+                        {bar(28, 62, 400, linear(frame, s2 + 50, s2 + 66, 0, 1))}
+                        {cloudIn > 0 ? (
+                          <svg width={1} height={1} style={{position: "absolute", left: 0, top: 0, overflow: "visible"}}>
+                            <g transform={`translate(18 96) scale(1.1 0.6) translate(-950 -100)`} opacity={cloudIn}>
+                              <path d={cloudPath} fill="rgba(26,26,26,0.05)" stroke={INK} strokeWidth={4} strokeDasharray="3 12" strokeLinecap="round" opacity={0.5} style={{filter: "blur(2.5px)"}} vectorEffect="non-scaling-stroke" />
+                            </g>
+                          </svg>
+                        ) : null}
+                        {HT_CHIP_X.map((x, k) => {
+                          const q = eased(frame, s2 + 72 + k * 8, s2 + 94 + k * 8);
+                          if (q <= 0) {
+                            return null;
+                          }
+                          return (
+                            <div
+                              key={k}
+                              style={{position: "absolute", left: x, top: 110, width: 190, height: 100, boxSizing: "border-box", padding: "18px 18px", background: CARD, border: `2.5px solid ${INK}`, borderRadius: 10, boxShadow: "0 8px 14px rgba(26,26,26,0.12)", filter: `blur(${(1 - q) * 12}px)`, opacity: q, transform: `scale(${0.88 + 0.12 * q})`}}
+                            >
+                              <div style={{height: 10, width: 80, borderRadius: 5, background: INK, opacity: 0.6}} />
+                              <div style={{height: 10, width: 126, borderRadius: 5, background: INK, opacity: 0.3, marginTop: 12}} />
+                              <div style={{height: 10, width: 70, borderRadius: 5, background: INK, opacity: 0.3, marginTop: 10}} />
+                            </div>
+                          );
+                        })}
+                        <svg width={1} height={1} style={{position: "absolute", left: 0, top: 0, overflow: "visible"}}>
+                          {[0, 1, 2].map((k) => {
+                            const a = eased(frame, s2 + 92 + k * 9, s2 + 104 + k * 9);
+                            if (a <= 0) {
+                              return null;
+                            }
+                            const x0 = HT_CHIP_X[k] + 190 + 8;
+                            const x1 = HT_CHIP_X[k + 1] - 8;
+                            const nl = linear(frame, s2 + 100 + k * 9, s2 + 108 + k * 9, 0, 1);
+                            return (
+                              <g key={k}>
+                                <path d={`M ${x0} 160 L ${x0 + (x1 - x0) * a} 160`} stroke={INK} strokeWidth={4} strokeLinecap="round" fill="none" />
+                                {a >= 1 ? <path d={`M ${x1 - 12} 150 L ${x1} 160 L ${x1 - 12} 170`} stroke={INK} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" fill="none" /> : null}
+                                <text x={(x0 + x1) / 2} y={138} textAnchor="middle" fontFamily={MONO} fontWeight={700} fontSize={26} fill={CINNABAR} opacity={nl}>
+                                  {k + 1}
+                                </text>
+                              </g>
+                            );
+                          })}
+                        </svg>
+                      </>,
+                    )
+                  : null}
+                {/* M3: Verification Tree + Tx Assemblers + a waiting Confirm button. */}
+                {typingBubble(HT_M.m3.y, dots3)}
+                {frame >= s3 + 24
+                  ? aiBubble(
+                      HT_M.m3.y,
+                      HT_M.m3.h,
+                      1330,
+                      m3P,
+                      <>
+                        {frame >= s3 + 28 ? (
+                          <div
+                            style={{
+                              position: "absolute",
+                              left: HT_TREE.x,
+                              top: HT_TREE.y,
+                              width: HT_TREE.w,
+                              height: HT_TREE.h,
+                              boxSizing: "border-box",
+                              padding: "26px 16px 14px",
+                              background: CARD,
+                              border: `2px solid ${INK}`,
+                              boxShadow: "0 12px 20px rgba(26,26,26,0.14)",
+                              textAlign: "center",
+                              transform: `translateY(${(1 - Math.min(1, treeP)) * -60}px) scale(${interpolate(treeP, [0, 1], [1.18, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"})}) rotate(-1.2deg)`,
+                              opacity: clampP(treeP * 3),
+                            }}
+                          >
+                            <div style={{position: "absolute", top: -12, left: "50%", width: 96, height: 24, marginLeft: -48, background: "rgba(255,255,255,0.62)", transform: "rotate(-2deg)"}} />
+                            <svg width={308} height={140} viewBox="0 0 310 150" style={{display: "block", margin: "0 auto"}}>
+                              {[
+                                [155, 22, 80, 70],
+                                [155, 22, 230, 70],
+                                [80, 70, 42, 124],
+                                [80, 70, 118, 124],
+                                [230, 70, 192, 124],
+                                [230, 70, 268, 124],
+                              ].map(([x1, y1, x2, y2], i) => {
+                                const g = linear(frame, s3 + 34 + i * 3, s3 + 50 + i * 3, 0, 1);
+                                return <line key={i} x1={x1} y1={y1} x2={x1 + (x2 - x1) * g} y2={y1 + (y2 - y1) * g} stroke={INK} strokeWidth={3} strokeLinecap="round" />;
+                              })}
+                              <rect x={125} y={6} width={60} height={30} rx={6} fill={INK} />
+                              {[80, 230].map((x) => (
+                                <rect key={x} x={x - 26} y={54} width={52} height={28} rx={6} fill={CARD} stroke={INK} strokeWidth={3} />
+                              ))}
+                              {[42, 118, 192, 268].map((x) => (
+                                <rect key={x} x={x - 20} y={110} width={40} height={26} rx={13} fill={CARD} stroke={INK} strokeWidth={3} />
+                              ))}
+                            </svg>
+                            <div style={{marginTop: 10, fontFamily: SERIF, fontWeight: 700, fontSize: 31, color: INK, letterSpacing: "-0.02em", whiteSpace: "nowrap"}}>Verification Tree</div>
+                          </div>
+                        ) : null}
+                        {[0, 1, 2, 3].map((k) => asmCard(k))}
+                        {btnWait > 0 ? (
+                          <div
+                            style={{
+                              position: "absolute",
+                              left: HT_BTN.x,
+                              top: HT_BTN.y - HT_BTN.h / 2,
+                              width: HT_BTN.w,
+                              height: HT_BTN.h,
+                              boxSizing: "border-box",
+                              borderRadius: 16,
+                              border: pressed ? `5px solid ${CINNABAR}` : `5px dashed ${CINNABAR}`,
+                              background: pressed ? CINNABAR : "transparent",
+                              color: pressed ? "#FFF8EE" : CINNABAR,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 14,
+                              fontFamily: SANS,
+                              fontWeight: 800,
+                              fontSize: 48,
+                              letterSpacing: "0.03em",
+                              opacity: pressed ? 1 : 0.55 * btnWait,
+                              transform: `scale(${1 - 0.07 * press})`,
+                            }}
+                          >
+                            {pressed ? (
+                              <svg width={46} height={46} viewBox="0 0 62 62">
+                                <path d="M 8 33 L 25 50 L 55 12" fill="none" stroke="#FFF8EE" strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            ) : null}
+                            Confirm
+                          </div>
+                        ) : null}
+                      </>,
+                    )
+                  : null}
+                {/* M4: the user confirms. */}
+                {frame >= s4 + 20 ? (
+                  <div style={{position: "absolute", left: 0, top: HT_M.m4.y, width: HT_WIN.w, height: HT_M.m4.h, opacity: clampP(m4P * 2.5)}}>
+                    <div style={{position: "absolute", left: HT_USER_R + 18, top: 16}}>
+                      <HtAvatar />
+                    </div>
+                    {shock > 0 && shock < 1 ? (
+                      <svg width={1} height={1} style={{position: "absolute", left: 0, top: 0, overflow: "visible"}}>
+                        <g opacity={1 - shock} stroke={CINNABAR} strokeWidth={5} strokeLinecap="round">
+                          {Array.from({length: 14}, (_, i) => {
+                            const a = (i / 14) * Math.PI * 2 + 0.2;
+                            if (Math.cos(a) > 0.8) {
+                              return null;
+                            }
+                            const rx = 205 + 24 * shock;
+                            const ry = 62 + 18 * shock;
+                            const cx = HT_USER_R - 180;
+                            return <line key={i} x1={cx + rx * Math.cos(a)} y1={48 + ry * Math.sin(a)} x2={cx + (rx + 24) * Math.cos(a)} y2={48 + (ry + 24) * Math.sin(a)} />;
+                          })}
+                        </g>
+                      </svg>
+                    ) : null}
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: HT_USER_R - 360 + shakeX,
+                        top: 0,
+                        width: 360,
+                        height: HT_M.m4.h,
+                        boxSizing: "border-box",
+                        border: `5px solid ${CINNABAR}`,
+                        outline: `2px solid ${CINNABAR}`,
+                        outlineOffset: 4,
+                        borderRadius: 18,
+                        background: "rgba(217,56,30,0.07)",
+                        color: CINNABAR,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 14,
+                        fontFamily: SANS,
+                        fontWeight: 800,
+                        fontSize: 46,
+                        letterSpacing: "0.03em",
+                        mixBlendMode: "multiply",
+                        transformOrigin: "50% 50%",
+                        transform: `rotate(-3deg) scale(${interpolate(m4P, [0, 1], [1.7, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"})})`,
+                      }}
+                    >
+                      <svg width={50} height={50} viewBox="0 0 62 62">
+                        <path d="M 8 33 L 25 50 L 55 12" fill="none" stroke={CINNABAR} strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      Confirm
+                    </div>
+                  </div>
+                ) : null}
+                {/* M5: Cinnabar does the rest. */}
+                {typingBubble(HT_M.m5.y, dots5)}
+                {frame >= s4 + 68
+                  ? aiBubble(
+                      HT_M.m5.y,
+                      HT_M.m5.h,
+                      830,
+                      m5P,
+                      <>
+                        {bar(28, 30, 360, linear(frame, s4 + 72, s4 + 90, 0, 1))}
+                        {flowDraw > 0 ? (
+                          <svg width={1} height={1} style={{position: "absolute", left: 0, top: 0, overflow: "visible"}}>
+                            <line x1={HT_FLOW.x0} y1={HT_FLOW.y} x2={HT_FLOW.x0 + Wd * flowDraw} y2={HT_FLOW.y} stroke={INK} strokeWidth={4} strokeLinecap="round" strokeDasharray="2 12" />
+                            {[0, 1, 2].map((i) => {
+                              if (frame < flowStart) {
+                                return null;
+                              }
+                              const t = (((fi - flowStart) / 96 + i / 3) % 1 + 1) % 1;
+                              const op = Math.min(1, t * 10) * (1 - linear(t, 0.9, 1, 0, 1));
+                              return (
+                                <g key={i} transform={`translate(${HT_FLOW.x0 + Wd * t} ${HT_FLOW.y})`} opacity={op}>
+                                  <rect x={-18} y={-14} width={36} height={28} rx={5} fill={CARD} stroke={INK} strokeWidth={3.5} />
+                                  <line x1={-10} y1={-4} x2={10} y2={-4} stroke={INK} strokeWidth={3} strokeLinecap="round" />
+                                  <line x1={-10} y1={5} x2={3} y2={5} stroke={INK} strokeWidth={3} strokeLinecap="round" />
+                                </g>
+                              );
+                            })}
+                            {doneP > 0.02 ? (
+                              <g transform={`translate(${HT_FLOW.done} ${HT_FLOW.y}) scale(${Math.min(1.2, doneP) * (1 + 0.07 * gp)})`} opacity={clampP(doneP * 3)}>
+                                <circle r={30} fill={CARD} stroke={CINNABAR} strokeWidth={6} />
+                                <circle r={30 + 12 * gp} fill="none" stroke={CINNABAR} strokeWidth={3} opacity={0.5 * (1 - gp)} />
+                                <path d="M -13 2 L -4 12 L 14 -10" fill="none" stroke={CINNABAR} strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" />
+                              </g>
+                            ) : null}
+                          </svg>
+                        ) : null}
+                      </>,
+                    )
+                  : null}
+                {frame >= s4 + 84 ? (
+                  <BigNote x={1420} y={HT_M.m5.y + HT_M.m5.h / 2 + 14} width={540} tilt={-3} p={stickerP} size={44}>
+                    Cinnabar does the rest
+                  </BigNote>
+                ) : null}
+              </div>
+              <div style={{position: "absolute", left: 0, right: 0, top: 0, height: 56, background: `linear-gradient(${CARD}, rgba(251,250,246,0))`}} />
+            </div>
+            {/* Input box with a blinking cursor and a send button. */}
+            <div style={{position: "absolute", left: 0, right: 0, bottom: 0, height: HT_WIN.input, borderTop: `2px solid ${INK}`, background: FOLDER}}>
+              <div style={{position: "absolute", left: 36, right: 36, top: 15, height: 70, boxSizing: "border-box", borderRadius: 35, border: `2.5px solid ${INK}`, background: "#FFFFFF", display: "flex", alignItems: "center", padding: "0 100px 0 30px", fontFamily: SANS, fontWeight: 600, fontSize: 34, color: INK, whiteSpace: "nowrap", overflow: "hidden"}}>
+                {typed > 0 && !sent ? <span>{HT_ASK.slice(0, typed)}</span> : null}
+                {typed === 0 || sent ? <span style={{display: "inline-block", width: 220, height: 11, borderRadius: 6, background: INK, opacity: 0.14, marginRight: 8}} /> : null}
+                <span style={{display: "inline-block", width: 3, height: 38, marginLeft: 2, background: CINNABAR, opacity: cursorOn ? 1 : 0}} />
+              </div>
+              <div style={{position: "absolute", right: 46, top: 24, width: 52, height: 52, borderRadius: "50%", border: `2.5px solid ${INK}`, background: sendPress > 0.04 ? CINNABAR : INK, display: "flex", alignItems: "center", justifyContent: "center", transform: `scale(${1 - 0.14 * sendPress})`}}>
+                <svg width={26} height={26} viewBox="0 0 26 26">
+                  <path d="M 4 13 L 22 13 M 14 5 L 22 13 L 14 21" fill="none" stroke="#FFF8EE" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </div>
             </div>
-            {/* Cinnabar's reply. */}
-            {dotsP > 0 ? (
-              <div style={{position: "absolute", left: 28, top: 300, display: "flex", alignItems: "center", gap: 18, opacity: dotsP}}>
-                <HtPlate w={116} h={40} size={15} />
-                <div style={{display: "flex", gap: 9, padding: "14px 20px", border: `2px solid ${INK}`, borderRadius: 20, background: "#FFFFFF"}}>
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} style={{width: 11, height: 11, borderRadius: "50%", background: INK, opacity: 0.35 + 0.5 * Math.max(0, Math.sin(frame / 3 - i * 1.2))}} />
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            {frame >= s2 + 30 ? (
-              <div style={{position: "absolute", left: 28, top: 290, display: "flex", gap: 18, alignItems: "flex-start", opacity: Math.min(1, replyP * 2.5), transform: `translateY(${(1 - Math.min(1, replyP)) * 24}px)`}}>
-                <div style={{marginTop: 4}}>
-                  <HtPlate w={116} h={40} size={15} />
-                </div>
-                <div style={{width: 560, boxSizing: "border-box", padding: "20px 26px 26px", background: "#FBEAE3", border: `2.5px solid ${CINNABAR}`, borderRadius: "22px 6px 22px 22px"}}>
-                  {bar(420, linear(frame, s2 + 36, s2 + 52, 0, 1))}
-                  {bar(340, linear(frame, s2 + 44, s2 + 60, 0, 1))}
-                  {bar(450, linear(frame, s2 + 52, s2 + 68, 0, 1))}
-                  {bar(230, linear(frame, s2 + 60, s2 + 76, 0, 1))}
-                </div>
-              </div>
-            ) : null}
-            <div style={{position: "absolute", left: 28, right: 28, bottom: 24, height: 54, borderRadius: 27, border: `2.5px solid ${INK}`, background: "#FFFFFF", opacity: 0.8}} />
           </div>
-        </div>
-      ) : null}
-      {/* Right: steps, the tree, Tx Assemblers, the stamp, the flow. */}
-      <div style={cssDrift(outR, 1400, 420)}>
-        {cloudIn > 0 ? (
-          <svg width={1} height={1} style={{position: "absolute", left: 0, top: 0, overflow: "visible"}}>
-            <g transform={`translate(1410 205) scale(${1 + 0.02 * Math.sin(frame / 8)}) translate(-1410 -205)`} opacity={cloudIn}>
-              <path d={cloudPath} fill="rgba(26,26,26,0.05)" stroke={INK} strokeWidth={4} strokeDasharray="3 12" strokeLinecap="round" opacity={0.5} style={{filter: "blur(2.5px)"}} />
-            </g>
-          </svg>
-        ) : null}
-        {HT_CHIP_X.map((x, k) => {
-          const q = eased(frame, s2 + 74 + k * 10, s2 + 98 + k * 10);
-          if (q <= 0) {
-            return null;
-          }
-          return (
-            <div
-              key={k}
-              style={{
-                position: "absolute",
-                left: x,
-                top: 152,
-                width: 150,
-                height: 100,
-                boxSizing: "border-box",
-                padding: "18px 16px",
-                background: CARD,
-                border: `2.5px solid ${INK}`,
-                borderRadius: 10,
-                boxShadow: "0 8px 14px rgba(26,26,26,0.12)",
-                filter: `blur(${(1 - q) * 12}px)`,
-                opacity: q,
-                transform: `scale(${0.88 + 0.12 * q})`,
-              }}
-            >
-              <div style={{height: 10, width: 70, borderRadius: 5, background: INK, opacity: 0.6}} />
-              <div style={{height: 10, width: 100, borderRadius: 5, background: INK, opacity: 0.3, marginTop: 12}} />
-              <div style={{height: 10, width: 56, borderRadius: 5, background: INK, opacity: 0.3, marginTop: 10}} />
-            </div>
-          );
-        })}
-        <svg width={1} height={1} style={{position: "absolute", left: 0, top: 0, overflow: "visible"}}>
-          {[0, 1, 2].map((k) => {
-            const a = eased(frame, s2 + 92 + k * 10, s2 + 106 + k * 10);
-            if (a <= 0) {
-              return null;
-            }
-            const x0 = HT_CHIP_X[k] + 150 + 6;
-            const x1 = HT_CHIP_X[k + 1] - 8;
-            const nl = linear(frame, s2 + 102 + k * 10, s2 + 112 + k * 10, 0, 1);
-            return (
-              <g key={k}>
-                <path d={`M ${x0} 202 L ${x0 + (x1 - x0) * a} 202`} stroke={INK} strokeWidth={4} strokeLinecap="round" fill="none" />
-                {a >= 1 ? <path d={`M ${x1 - 12} 192 L ${x1} 202 L ${x1 - 12} 212`} stroke={INK} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" fill="none" /> : null}
-                <text x={(x0 + x1) / 2} y={178} textAnchor="middle" fontFamily={MONO} fontWeight={700} fontSize={26} fill={CINNABAR} opacity={nl}>
-                  {k + 1}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
-        {/* Verification Tree card. */}
-        {frame >= s3 + 4 ? (
-          <div
-            style={{
-              position: "absolute",
-              left: HT_TREE.x,
-              top: HT_TREE.y,
-              width: HT_TREE.w,
-              height: HT_TREE.h,
-              boxSizing: "border-box",
-              padding: "28px 20px 18px",
-              background: CARD,
-              border: `2px solid ${INK}`,
-              boxShadow: "0 14px 24px rgba(26,26,26,0.16)",
-              textAlign: "center",
-              transform: `translateY(${(1 - Math.min(1, treeP)) * -90}px) scale(${interpolate(treeP, [0, 1], [1.22, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"})}) rotate(-1.5deg)`,
-              opacity: Math.min(1, Math.max(0, treeP * 3)),
-            }}
-          >
-            <div style={{position: "absolute", top: -13, left: "50%", width: 100, height: 26, marginLeft: -50, background: "rgba(255,255,255,0.62)", transform: "rotate(-2deg)"}} />
-            <svg width={310} height={150} viewBox="0 0 310 150" style={{display: "block", margin: "0 auto"}}>
-              {[
-                [155, 22, 80, 70],
-                [155, 22, 230, 70],
-                [80, 70, 42, 124],
-                [80, 70, 118, 124],
-                [230, 70, 192, 124],
-                [230, 70, 268, 124],
-              ].map(([x1, y1, x2, y2], i) => {
-                const g = linear(frame, s3 + 10 + i * 3, s3 + 26 + i * 3, 0, 1);
-                return <line key={i} x1={x1} y1={y1} x2={x1 + (x2 - x1) * g} y2={y1 + (y2 - y1) * g} stroke={INK} strokeWidth={3} strokeLinecap="round" />;
-              })}
-              <rect x={125} y={6} width={60} height={30} rx={6} fill={INK} />
-              {[80, 230].map((x) => (
-                <rect key={x} x={x - 26} y={54} width={52} height={28} rx={6} fill={CARD} stroke={INK} strokeWidth={3} />
-              ))}
-              {[42, 118, 192, 268].map((x) => (
-                <rect key={x} x={x - 20} y={110} width={40} height={26} rx={13} fill={CARD} stroke={INK} strokeWidth={3} />
-              ))}
-            </svg>
-            <div style={{marginTop: 12, fontFamily: SERIF, fontWeight: 700, fontSize: 31, color: INK, letterSpacing: "-0.02em", whiteSpace: "nowrap"}}>Verification Tree</div>
-          </div>
-        ) : null}
-        {[0, 1, 2, 3].map((k) => asmCard(k))}
-        {/* Confirm stamp: a dashed outline waits; the stamp thumps down. */}
-        {waitP > 0 && frame < s4 + 4 ? (
-          <div
-            style={{
-              position: "absolute",
-              left: HT_STAMP.x,
-              top: HT_STAMP.y,
-              width: HT_STAMP.w,
-              height: HT_STAMP.h,
-              boxSizing: "border-box",
-              border: `5px dashed ${CINNABAR}`,
-              borderRadius: 16,
-              color: CINNABAR,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: SANS,
-              fontWeight: 800,
-              fontSize: 54,
-              letterSpacing: "0.04em",
-              transform: "translate(-50%, -50%) rotate(-5deg)",
-              opacity: 0.5 * waitP,
-            }}
-          >
-            Confirm
-          </div>
-        ) : null}
-        {frame >= s4 + 4 ? (
-          <>
-            {shock > 0 && shock < 1 ? (
-              <svg width={1} height={1} style={{position: "absolute", left: 0, top: 0, overflow: "visible"}}>
-                <g opacity={1 - shock} stroke={CINNABAR} strokeWidth={5} strokeLinecap="round">
-                  {Array.from({length: 12}, (_, i) => {
-                    const a = (i / 12) * Math.PI * 2 + 0.3;
-                    const r0 = 230 + 40 * shock;
-                    return <line key={i} x1={HT_STAMP.x + r0 * Math.cos(a) * 1.1} y1={HT_STAMP.y + r0 * 0.5 * Math.sin(a)} x2={HT_STAMP.x + (r0 + 34) * Math.cos(a) * 1.1} y2={HT_STAMP.y + (r0 + 34) * 0.5 * Math.sin(a)} />;
-                  })}
-                </g>
-              </svg>
-            ) : null}
-            <div
-              style={{
-                position: "absolute",
-                left: HT_STAMP.x + shakeX,
-                top: HT_STAMP.y,
-                width: HT_STAMP.w,
-                height: HT_STAMP.h,
-                boxSizing: "border-box",
-                border: `7px solid ${CINNABAR}`,
-                outline: `2px solid ${CINNABAR}`,
-                outlineOffset: 5,
-                borderRadius: 16,
-                background: "rgba(217,56,30,0.07)",
-                color: CINNABAR,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 16,
-                fontFamily: SANS,
-                fontWeight: 800,
-                fontSize: 54,
-                letterSpacing: "0.04em",
-                mixBlendMode: "multiply",
-                transform: `translate(-50%, -50%) rotate(-5deg) scale(${interpolate(stampP, [0, 1], [1.9, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"})})`,
-                opacity: Math.min(0.95, Math.max(0, stampP * 3)),
-              }}
-            >
-              <svg width={62} height={62} viewBox="0 0 62 62">
-                <path d="M 8 33 L 25 50 L 55 12" fill="none" stroke={CINNABAR} strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              Confirm
-            </div>
-          </>
-        ) : null}
-        {/* The rest runs on its own: a line, chips flowing along it, a done mark. */}
-        {flowDraw > 0 ? (
-          <svg width={1} height={1} style={{position: "absolute", left: 0, top: 0, overflow: "visible"}}>
-            <line x1={HT_FLOW.x0} y1={HT_FLOW.y} x2={HT_FLOW.x0 + Wd * flowDraw} y2={HT_FLOW.y} stroke={INK} strokeWidth={4} strokeLinecap="round" strokeDasharray="2 12" />
-            {[0, 1, 2].map((i) => {
-              if (frame < flowStart) {
-                return null;
-              }
-              const t = (((fi - flowStart) / 96 + i / 3) % 1 + 1) % 1;
-              const op = Math.min(1, t * 10) * (1 - linear(t, 0.9, 1, 0, 1));
-              return (
-                <g key={i} transform={`translate(${HT_FLOW.x0 + Wd * t} ${HT_FLOW.y})`} opacity={op}>
-                  <rect x={-18} y={-14} width={36} height={28} rx={5} fill={CARD} stroke={INK} strokeWidth={3.5} />
-                  <line x1={-10} y1={-4} x2={10} y2={-4} stroke={INK} strokeWidth={3} strokeLinecap="round" />
-                  <line x1={-10} y1={5} x2={3} y2={5} stroke={INK} strokeWidth={3} strokeLinecap="round" />
-                </g>
-              );
-            })}
-            {doneP > 0.02 ? (
-              <g transform={`translate(${HT_FLOW.done} ${HT_FLOW.y}) scale(${Math.min(1.2, doneP) * (1 + 0.07 * gp)})`} opacity={Math.min(1, doneP * 3)}>
-                <circle r={32} fill={CARD} stroke={CINNABAR} strokeWidth={6} />
-                <circle r={32 + 12 * gp} fill="none" stroke={CINNABAR} strokeWidth={3} opacity={0.5 * (1 - gp)} />
-                <path d="M -14 2 L -4 13 L 15 -11" fill="none" stroke={CINNABAR} strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" />
-              </g>
-            ) : null}
-          </svg>
-        ) : null}
-      </div>
-      {frame >= s4 + 34 ? (
-        <div style={cssDrift(outS, HT_STICKY.x, HT_STICKY.y)}>
-          <BigNote x={HT_STICKY.x} y={HT_STICKY.y} width={500} tilt={-2} p={stickyP} size={41}>
-            Cinnabar does the rest
-          </BigNote>
         </div>
       ) : null}
     </div>
@@ -662,6 +563,7 @@ const Scene: React.FC = () => {
         <OpeningFile frame={frame} fps={fps} />
         <TitleNote frame={frame} fps={fps} />
         <RgbArrival frame={frame} />
+        <Thermometer frame={frame} fps={fps} />
         <CircleCards frame={frame} fps={fps} />
         <Arrows frame={frame} />
         <JourneyNotes frame={frame} fps={fps} />
@@ -678,7 +580,6 @@ const Scene: React.FC = () => {
         <Tree frame={frame} fps={fps} />
         <Framework frame={frame} fps={fps} />
         <Closing frame={frame} fps={fps} />
-        <Conclusion frame={frame} fps={fps} />
         <HowTo frame={frame} fps={fps} />
       </div>
       <JumpView frame={frame} fps={fps} />
@@ -822,11 +723,6 @@ const OpeningFile: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
     extrapolateRight: "clamp",
   });
   const label = enter(frame, fps, at0, 14);
-  const chop = slam(frame, fps, at0, 26);
-  const chopScale = interpolate(chop, [0, 1], [1.9, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "extend",
-  });
   return (
     <div
       style={{
@@ -896,18 +792,6 @@ const OpeningFile: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
           <div
             style={{
               fontFamily: MONO,
-              fontSize: 13,
-              letterSpacing: "0.24em",
-              color: INK,
-              opacity: 0.6,
-            }}
-          >
-            CASE FILE
-          </div>
-          <div
-            style={{
-              marginTop: 6,
-              fontFamily: MONO,
               fontWeight: 700,
               fontSize: 64,
               letterSpacing: "0.14em",
@@ -943,35 +827,6 @@ const OpeningFile: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
             opacity: 0.25,
           }}
         />
-        {frame >= at0 + 26 ? (
-          <div
-            style={{
-              position: "absolute",
-              right: 52,
-              top: 52,
-              width: 138,
-              height: 138,
-              border: `6px solid ${CINNABAR}`,
-              outline: `2px solid ${CINNABAR}`,
-              outlineOffset: 4,
-              color: CINNABAR,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: CJK,
-              fontWeight: 700,
-              fontSize: 54,
-              lineHeight: 1,
-              letterSpacing: "0.02em",
-              writingMode: "vertical-rl",
-              transform: `rotate(-6deg) scale(${chopScale})`,
-              opacity: Math.min(0.94, Math.max(0, chop * 3)),
-              mixBlendMode: "multiply",
-            }}
-          >
-            朱砂
-          </div>
-        ) : null}
       </div>
     </div>
   );
@@ -1156,7 +1011,7 @@ const RgbArrival: React.FC<{frame: number}> = ({frame}) => {
 const CircleCards: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   const at = beatStart(3);
   // Beat 10 step 1: Build turns red and stays red into beat 11; the other cards fade to faint ink.
-  const red = linear(frame, stepStart(9, 1) + 6, stepStart(9, 1) + 20, 0, 1);
+  const red = linear(frame, stepStart(9, 2) + 6, stepStart(9, 2) + 20, 0, 1);
   const dim = buildFocus(frame);
   const cards = [
     {n: "01", label: "Discover", at: CIRCLE.discover, delay: 40, rot: -2},
@@ -1467,7 +1322,7 @@ const JourneyNotes: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
 
 /** Beat 10 step 1 on: Discover, Learn, Success and the arcs fade to faint ink while Build is lit. Restores off-screen after the beat 11 glide. */
 const buildFocus = (frame: number): number =>
-  eased(frame, stepStart(9, 1), stepStart(9, 1) + 14) *
+  eased(frame, stepStart(9, 2), stepStart(9, 2) + 14) *
   (1 - linear(frame, beatStart(10) + 40, beatStart(10) + 52, 0, 1));
 
 const GAP_SEAL = {x: 2620, y: 3300};
@@ -1483,7 +1338,7 @@ const FLOURISH = "M 0 30 C 0 13 13 0 30 0 M 9 24 C 11 16 16 11 24 9";
 
 /** Beat 10 step 2 landing: a short desk shake when the Cinnabar seal card slams down. */
 const gapShake = (frame: number): {x: number; y: number} => {
-  const t = frame - (stepStart(9, 2) + 10);
+  const t = frame - (stepStart(9, 3) + 10);
   if (t < 0 || t > 10) {
     return {x: 0, y: 0};
   }
@@ -1494,8 +1349,8 @@ const gapShake = (frame: number): {x: number; y: number} => {
 /** Beat 10 steps 1-2 (world): red loop on Build with a gentle breathe, then a premium Cinnabar seal card and a thick arrow from it to Build. */
 const GapBuild: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   const idleF = useIdle();
-  const s1 = stepStart(9, 1);
-  const s2 = stepStart(9, 2);
+  const s1 = stepStart(9, 2);
+  const s2 = stepStart(9, 3);
   const next = beatStart(10);
   if (frame < s1 || frame >= next + 34) {
     return null;
@@ -2354,39 +2209,7 @@ const CalcCard: React.FC<{
   </div>
 );
 
-/** Beat 12: quiet annotation under a card (pale paper, brown pencil-weight lettering, soft drop, dotted lead up to the card). */
 const QUIET_INK = "#6E5E4A";
-const QuietNote: React.FC<{x: number; y: number; width: number; tilt: number; p: number; children: React.ReactNode}> = ({x, y, width, tilt, p, children}) => (
-  <div
-    style={{
-      position: "absolute",
-      left: x,
-      top: y,
-      width,
-      padding: "24px 28px 22px",
-      boxSizing: "border-box",
-      background: "#FAF5E6",
-      border: "1.5px solid rgba(110,94,74,0.28)",
-      borderRadius: 3,
-      color: QUIET_INK,
-      fontFamily: '"Marker Felt", "Chalkboard SE", "Bradley Hand", "Comic Neue", ui-sans-serif, system-ui, sans-serif',
-      fontWeight: 400,
-      fontSize: 40,
-      lineHeight: 1.12,
-      boxShadow: "0 6px 14px rgba(26,26,26,0.07)",
-      transform: `translate(-50%, -50%) translateY(${(1 - Math.min(1, p)) * -34}px) scale(${interpolate(p, [0, 1], [1.12, 1], {
-        extrapolateLeft: "clamp",
-        extrapolateRight: "extend",
-      })}) rotate(${tilt}deg)`,
-      opacity: Math.min(1, Math.max(0, p * 2.5)),
-    }}
-  >
-    <div style={{position: "absolute", left: "50%", bottom: "100%", width: 0, height: 118, borderLeft: `2.5px dotted ${QUIET_INK}`, opacity: 0.55}} />
-    <div style={{position: "absolute", left: "50%", bottom: "calc(100% + 112px)", width: 10, height: 10, marginLeft: -4, borderRadius: "50%", background: QUIET_INK, opacity: 0.6}} />
-    <div style={{position: "absolute", top: -10, left: 22, width: 70, height: 20, background: "rgba(255,255,255,0.55)", transform: "rotate(-5deg)"}} />
-    {children}
-  </div>
-);
 
 /** Beat 12 (world): contract and its assembler far apart across a long bridge marked GAP; Cinnabar smashes the bridge and merges them. */
 const TxAssemblers: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
@@ -2427,17 +2250,13 @@ const TxAssemblers: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   const monoTagP = slam(frame, fps, s6, 48);
   // Step 1-2 cards and notes.
   const cP = slam(frame, fps, s(1), 4);
-  const n1 = slam(frame, fps, s(1), 30);
   const aP = slam(frame, fps, s(2), 4);
-  const n2 = slam(frame, fps, s(2), 30);
   const figIn = linear(frame, s(2) + 40, s(2) + 52, 0, 1);
   // The client tag pops after the Tx Assembler card lands, then sways gently (period 60, zero at each 60-frame mark).
   const clientP = slam(frame, fps, s(2), 16);
   const clientIdle = Math.max(0, frame + idleF - (s(2) + 40));
   const clientWiggle = 1.6 * Math.sin((2 * Math.PI * clientIdle) / 60) * (1 - Math.exp(-clientIdle / 20));
   const n4 = slam(frame, fps, s(4), 4);
-  const n1Out = deskDrift(frame, s5, {x: -0.3, y: 1});
-  const n2Out = deskDrift(frame, s5 + 2, {x: 0.3, y: 1});
   const n4Out = deskDrift(frame, s5, {x: 0.2, y: -1});
   const walk = interpolate(frame, [s5 + 2, s5 + 40], [0, 1], {...clamp, easing: Easing.in(Easing.quad)});
   const working = 1 - linear(frame, s5, s5 + 8, 0, 1);
@@ -2504,6 +2323,98 @@ const TxAssemblers: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
                 />
               );
             })}
+            {/* Minimal bridge life: railing, lamp posts, direction chevrons, walkers and cars, all heading Contract -> Tx Assembler. They ride the two deck halves down on impact. */}
+            {(() => {
+              const reach = (x: number) => Math.min(1, Math.max(0, (railEnd - x) / 80));
+              const half = (x: number) => (x < CALC_MID ? 0 : 1);
+              const sideTf = (side: number) =>
+                `translate(0 ${debris.dy * 0.5}) rotate(${it >= 0 ? (side === 0 ? 1 : -1) * 0.07 * it * it : 0} ${side === 0 ? BR.a : BR.b} ${BR_Y})`;
+              const top = BR_Y - 7;
+              const railTop = top - 64;
+              const baluster = (x: number) => (
+                <g key={`b${x}`} transform={sideTf(half(x))} opacity={debris.op * reach(x)}>
+                  <line x1={x} y1={top} x2={x} y2={railTop} stroke={INK} strokeWidth={4} strokeLinecap="round" />
+                </g>
+              );
+              const railSeg = (x0: number, x1: number, key: string) => {
+                const e = Math.min(x1, Math.max(x0, railEnd));
+                if (e <= x0) {
+                  return null;
+                }
+                return (
+                  <g key={key} transform={sideTf(half(x0))} opacity={debris.op}>
+                    <line x1={x0} y1={railTop} x2={e} y2={railTop} stroke={INK} strokeWidth={6} strokeLinecap="round" />
+                  </g>
+                );
+              };
+              const lamp = (x: number, dir: number) => (
+                <g key={`l${x}`} transform={sideTf(half(x))} opacity={debris.op * posts}>
+                  <g transform={`translate(${x} ${top}) scale(1 ${posts})`}>
+                    <line x1={0} y1={0} x2={0} y2={-270} stroke={INK} strokeWidth={9} strokeLinecap="round" />
+                    <path d={`M 0 -270 Q 0 -302 ${dir * 46} -302`} fill="none" stroke={INK} strokeWidth={8} strokeLinecap="round" />
+                    <circle cx={dir * 54} cy={-282} r={30} fill={STICKY} opacity={0.5} />
+                    <path d={`M ${dir * 34} -304 L ${dir * 74} -304 L ${dir * 66} -280 L ${dir * 42} -280 Z`} fill={INK} />
+                  </g>
+                </g>
+              );
+              const chevrons = [700, 850, 1150, 1300, 1700, 1850, 2150, 2300];
+              const t0 = s3 + 4 + BR.n + 6;
+              const tc = Math.min(frame, impactAt) + idleF - t0;
+              const vis = linear(frame, t0, t0 + 14, 0, 1);
+              const lane = (T: number, phase: number) => {
+                const u = (((tc / T + phase) % 1) + 1) % 1;
+                return {x: BR.a + 70 + u * (BR.b - BR.a - 140), edge: Math.min(1, u * 10) * Math.min(1, (1 - u) * 10)};
+              };
+              const walkers = [lane(520, 0.15), lane(520, 0.62)];
+              const cars = [lane(190, 0.05), lane(190, 0.55)];
+              return (
+                <>
+                  {[BR.a + 36, ...[1, 2, 3, 4, 5, 6, 7].map((k) => BR.a + 36 + k * 70)].filter((x) => x < 1140).map(baluster)}
+                  {[1880, 1950, 2020, 2090, 2160, 2230, 2300, 2370].map(baluster)}
+                  {railSeg(BR.a + 36, 1130, "rl")}
+                  {railSeg(1880, BR.b - 30, "rr")}
+                  {lamp(800, 1)}
+                  {lamp(2200, -1)}
+                  {chevrons.map((x) => (
+                    <g key={`c${x}`} transform={sideTf(half(x))} opacity={debris.op * reach(x) * 0.8}>
+                      <path d={`M ${x - 12} ${BR_Y + 28} L ${x + 8} ${BR_Y + 40} L ${x - 12} ${BR_Y + 52}`} fill="none" stroke={INK} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" />
+                    </g>
+                  ))}
+                  {vis > 0
+                    ? walkers.map((w, i) => {
+                        const sw = Math.sin((tc + i * 9) * 0.42);
+                        return (
+                          <g key={`w${i}`} transform={sideTf(half(w.x))} opacity={debris.op * vis * w.edge}>
+                            <g transform={`translate(${w.x} ${top}) scale(${1.5 - 0.15 * i})`}>
+                              <circle cx={0} cy={-62} r={8} fill={INK} />
+                              <path d="M -10 -50 L 10 -50 L 8 -22 L -8 -22 Z" fill={INK} />
+                              <line x1={-3} y1={-22} x2={-3 - 9 * sw} y2={0} stroke={INK} strokeWidth={5} strokeLinecap="round" />
+                              <line x1={3} y1={-22} x2={3 + 9 * sw} y2={0} stroke={INK} strokeWidth={5} strokeLinecap="round" />
+                              <line x1={0} y1={-46} x2={10 + 5 * sw} y2={-30} stroke={INK} strokeWidth={4} strokeLinecap="round" />
+                            </g>
+                          </g>
+                        );
+                      })
+                    : null}
+                  {vis > 0
+                    ? cars.map((c, i) => (
+                        <g key={`car${i}`} transform={sideTf(half(c.x))} opacity={debris.op * vis * c.edge}>
+                          <g transform={`translate(${c.x} ${top - 12}) scale(${1.6 - 0.2 * i})`}>
+                            <path d="M -56 0 L -56 -16 Q -56 -22 -48 -22 L -34 -22 L -22 -44 L 22 -44 L 36 -22 L 50 -22 Q 56 -22 56 -16 L 56 0 Z" fill={INK} />
+                            <path d="M -17 -26 L -9 -39 L 0 -39 L 0 -26 Z M 6 -26 L 6 -39 L 18 -39 L 28 -26 Z" fill={PAPER} />
+                            {[-30, 30].map((wx) => (
+                              <g key={wx}>
+                                <circle cx={wx} cy={0} r={12} fill={INK} />
+                                <circle cx={wx} cy={0} r={4.5} fill={PAPER} />
+                              </g>
+                            ))}
+                          </g>
+                        </g>
+                      ))
+                    : null}
+                </>
+              );
+            })()}
             {it >= 0 && it < 18 ? (
               <path
                 d={`M ${CALC_MID - 10} ${BR.deck - 50} L ${CALC_MID + 14} ${BR.deck - 20} L ${CALC_MID - 8} ${BR.deck} L ${CALC_MID + 12} ${BR.deck + 34}`}
@@ -2777,20 +2688,6 @@ const TxAssemblers: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
               </g>
             </svg>
           ) : null}
-        </div>
-      ) : null}
-      {frame >= s(1) + 30 ? (
-        <div style={cssDrift(n1Out, 420, 6700)}>
-          <QuietNote x={420} y={6690} width={480} tilt={-2} p={n1}>
-            Develop contract here
-          </QuietNote>
-        </div>
-      ) : null}
-      {frame >= s(2) + 30 ? (
-        <div style={cssDrift(n2Out, 2620, 6700)}>
-          <QuietNote x={2620} y={6690} width={620} tilt={1.5} p={n2}>
-            Write Tx Assembler there
-          </QuietNote>
         </div>
       ) : null}
       {frame >= s(4) + 4 ? (
@@ -4604,7 +4501,6 @@ const NotReady: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
       >
         {COPY[2].title}
       </div>
-      <Thermometer frame={frame} fps={fps} out={out} />
       {frame >= posterAt ? (
         <div
           style={{
@@ -4721,23 +4617,33 @@ const NotReady: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   );
 };
 
-/** Beat 3 market thermometer, screen-fixed at the right edge of the close-up. No numbers on it. */
-const Thermometer: React.FC<{frame: number; fps: number; out: number}> = ({
-  frame,
-  fps,
-  out,
-}) => {
-  const at = beatStart(2) + 30;
-  if (frame < at) {
+/**
+ * Market thermometer, one desk object shared by beats 2 and 3. It sits at the right edge of the beat-3 close-up
+ * (world coords found by inverting that camera) so the camera glide carries it. No numbers on it.
+ * Beat 2: it pops in with the curve and its mercury rises with the red dot. Beat 3: it falls with the crowd.
+ */
+const THERMO_WORLD = {x: 3010, y: 747, scale: 1 / 1.9};
+const Thermometer: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
+  const at = stepStart(1, 1);
+  const next = beatStart(3);
+  if (frame < at || frame >= next + 20) {
     return null;
   }
-  const drop = slam(frame, fps, at, 0);
-  // Step 0: fills up hot. Step 1: falls with the crowd, so it speeds up as the removals do.
-  const fill = interpolate(frame, [at + 10, at + 40], [0.5, 0.9], {
+  // Fade out during the glide to beat 4 so nothing lingers there.
+  const out = interpolate(frame, [next, next + 18], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
-    easing: Easing.out(Easing.cubic),
+    easing: Easing.in(Easing.cubic),
   });
+  const drop = slam(frame, fps, at, 0);
+  // Beat 2: the mercury climbs exactly with the curve's red dot (same window and easing as the draw).
+  const drawn = interpolate(frame, [at + 4, at + 50], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.inOut(Easing.quad),
+  });
+  // Beat 3 starts from this full level and falls with the crowd, so it speeds up as the removals do.
+  const fill = 0.1 + 0.8 * drawn;
   const level = fill - 0.82 * crowdGone(frame);
   const color = interpolateColors(level, [0.08, 0.9], [COBALT, CINNABAR]);
   const heat = interpolate(level, [0.45, 0.9], [0, 1], {
@@ -4759,11 +4665,12 @@ const Thermometer: React.FC<{frame: number; fps: number; out: number}> = ({
   const rise = (frame * 0.8) % 18;
   const ticks = Array.from({length: 11}, (_, i) => top + 10 + i * 42);
   return (
+    <div style={{position: "absolute", left: THERMO_WORLD.x, top: THERMO_WORLD.y, width: 0, height: 0, transform: `scale(${THERMO_WORLD.scale})`, transformOrigin: "0 0"}}>
     <div
       style={{
         position: "absolute",
-        left: 1720,
-        top: 250,
+        left: 0,
+        top: 0,
         width: 140,
         height: 640,
         transform: `translateY(${(1 - Math.min(1, drop)) * -80}px) scale(${interpolate(drop, [0, 1], [1.2, 1], {
@@ -4867,6 +4774,7 @@ const Thermometer: React.FC<{frame: number; fps: number; out: number}> = ({
       >
         market
       </div>
+    </div>
     </div>
   );
 };
@@ -6434,7 +6342,7 @@ const HEADLINE_SLOT: Partial<Record<number, React.CSSProperties>> = {
   5: {left: 64, right: 80, top: 72},
   6: {left: 64, right: 80, top: 72},
   8: {left: 64, right: 80, top: 72},
-  18: {left: 0, right: 0, top: 372, textAlign: "center"},
+  17: {left: 0, right: 0, top: 372, textAlign: "center"},
 };
 
 const Overlay: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
@@ -6443,7 +6351,7 @@ const Overlay: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   const tool = linear(frame, beatStart(10), beatStart(10) + 10, 0, 1);
   // Beat 4 waits for beat 3's top headline to fade before its own lands in the same area.
   // Beat 5 waits until the Success card has left the lower-left headline area during the glide.
-  const titleP = reveal(frame, fps, beatStart(beat), beat === 3 ? 20 : beat === 18 ? 34 : beat >= 4 && beat <= 17 ? 26 : 2);
+  const titleP = reveal(frame, fps, beat === 9 ? stepStart(9, 1) : beatStart(beat), beat === 9 ? 2 : beat === 3 ? 20 : beat === 17 ? 34 : beat >= 4 && beat <= 16 ? 26 : 2);
   // Beat 9 delays its subline with its headline so neither crosses the circle mid-glide.
   const subP = reveal(frame, fps, beatStart(beat), beat === 8 || beat === 10 ? 38 : 14);
   // Title page: the sentence arrives on click 2, then a red-pen highlight sweeps 'AI-friendly' and an underline is drawn.
@@ -6519,7 +6427,9 @@ const Overlay: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
               : undefined,
           // Step 5 pull-back: the headline dips out while notes sweep under it, then returns full size.
           opacity:
-            beat === 3
+            beat === 16
+              ? 1 - eased(frame, stepStart(16, 1), stepStart(16, 1) + 10)
+              : beat === 3
               ? 1 -
                 linear(frame, stepStart(3, 5), stepStart(3, 5) + 8, 0, 1) +
                 linear(frame, stepStart(3, 5) + 26, stepStart(3, 5) + 40, 0, 1)
@@ -6537,42 +6447,13 @@ const Overlay: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
               lineHeight: 0.98,
               paddingBottom: "0.2em",
               marginBottom: "-0.2em",
-              display: beat === 18 ? "inline-block" : undefined,
-              textShadow: beat === 18 ? "0 0 4px rgba(247,246,241,1), 0 0 16px rgba(247,246,241,0.95), 0 0 36px rgba(247,246,241,0.7)" : undefined,
+              display: beat === 17 ? "inline-block" : undefined,
+              textShadow: beat === 17 ? "0 0 4px rgba(247,246,241,1), 0 0 16px rgba(247,246,241,0.95), 0 0 36px rgba(247,246,241,0.7)" : undefined,
               opacity: Math.min(1, Math.max(0, titleP * 1.4)),
               clipPath: `inset(0 ${wipe(titleP)}% 0 0)`,
             }}
           >
             {copy.title}
-            {beat === 18 ? (
-              <span
-                style={{
-                  verticalAlign: "-0.03em",
-                  marginLeft: "0.1em",
-                  width: 112,
-                  height: 112,
-                  boxSizing: "border-box",
-                  border: `6px solid ${CINNABAR}`,
-                  outline: `2px solid ${CINNABAR}`,
-                  outlineOffset: 4,
-                  color: CINNABAR,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontFamily: CJK,
-                  fontWeight: 700,
-                  fontSize: 44,
-                  lineHeight: 1,
-                  letterSpacing: "0.02em",
-                  writingMode: "vertical-rl",
-                  textShadow: "none",
-                  transform: "rotate(-6deg)",
-                  mixBlendMode: "multiply",
-                }}
-              >
-                朱砂
-              </span>
-            ) : null}
           </div>
         ) : null}
         {beat === 0 ? (
@@ -6590,6 +6471,7 @@ const Overlay: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
             }}
           >
             <span style={{position: "relative", display: "inline-block"}}>
+              {"An "}
               <span style={{position: "relative", display: "inline-block"}}>
                 {hlSweep > 0 ? (
                   <span
@@ -6609,7 +6491,7 @@ const Overlay: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
                 ) : null}
                 <span style={{position: "relative"}}>AI-friendly</span>
               </span>
-              {" way to write CKB scripts."}
+              {" tool to write CKB scripts"}
               {hlLine > 0 ? (
                 <svg viewBox="0 0 1000 24" preserveAspectRatio="none" style={{position: "absolute", left: 0, bottom: -20, width: "100%", height: 24, overflow: "visible"}}>
                   <path d="M 4 14 C 140 4, 300 20, 470 10 S 760 18, 996 8" fill="none" stroke={CINNABAR} strokeWidth={5} strokeLinecap="round" vectorEffect="non-scaling-stroke" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - hlLine} />
@@ -6688,8 +6570,8 @@ const Overlay: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
       ) : null}
       {(beat === 1 && frame >= peopleAt) || rgbLeaving ? (
         <BigNote
-          x={1600 + 900 * rgbLeave}
-          y={560 - 160 * rgbLeave}
+          x={1580 + 900 * rgbLeave}
+          y={330 - 100 * rgbLeave}
           width={470}
           tilt={3 + 10 * rgbLeave}
           p={peopleNote}

@@ -1,6 +1,6 @@
 # Cinnabar talk
 
-A click-through presenter for a ten-minute talk on CKB / Nervos, built with [Remotion](https://www.remotion.dev) and React. The talk is 19 pages. Each page plays once when you advance, then holds on its last frame. Nothing moves on hover.
+A click-through presenter for a ten-minute talk on CKB / Nervos, built with [Remotion](https://www.remotion.dev) and React. The talk is 18 pages. Each page plays once when you advance, then holds on its last frame. Nothing moves on hover.
 
 ## Controls
 
@@ -17,7 +17,7 @@ Once a step has finished playing and the talk is waiting for you, a faint red do
 ```bash
 npm install
 npm run present      # presenter at http://127.0.0.1:4173
-npm run dev          # Remotion Studio, to inspect the CinnabarTalk composition and each Beat01 to Beat19
+npm run dev          # Remotion Studio, to inspect the CinnabarTalk composition and each Beat01 to Beat18
 npm run lint         # eslint src && tsc
 ```
 
