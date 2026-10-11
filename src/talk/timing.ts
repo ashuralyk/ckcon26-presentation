@@ -20,11 +20,11 @@ export const STEPS: number[][] = [
   [90, 80, 100], // 10 The gap is build: circle + headline, Build lights red + loop (others dim), gap sticky + onward arrow
   [90, 70, 70, 70, 80], // 11 Cinnabar: crate tagged CINNABAR, then one feature pops out per click (four)
   [90, 80, 80, 130, 80, 150, 90], // 12 Contracts own their calculators: seed card -> headline, contract + note, assembler + note, long GAP bridge, sticker, Cinnabar smashes the bridge + merge, close-up + Monorepo sticker
-  [100, 140, 100, 120, 160], // 13 AI skills for non-coders (first person): 02 card -> headline + rock with the CKB Scripts crystal, iron digger fails, Cinnabar + AI skills cart, magic turns the digger gold, golden strike frees the crystal and a person holds it up
+  [100, 215, 170, 130, 250], // 13 AI skills for non-coders (high jump): 02 card -> headline, stage + failed jumps, another try and giving up + sticky, AI skills arrives and the bar sinks, a stream of jumpers clears it + sticky
   [100, 80, 140, 90, 90, 110, 100], // 14 Inclusive verification tree: 03 card -> headline, Root, tree grows, green path, second green path, failed path + sticker, It's structural verification sticky
   [100, 90, 100, 110, 90], // 15 The first SSRI-integrated contract framework: 04 card -> headline, Contract + Calculators, Default path to GitHub, SSRI Switch On path to CKB chain, yellow sticky
   [100, 100, 130, 130], // 16 The meaning of Cinnabar: headline, raw rock + seal + small sticky, ghosts pushed back by the red glow, CKB card with ghosts kept outside + final sticky
-  [100, 90], // 17 Thank you: headline alone, then the red 朱砂 seal stamps beside it
+  [90], // 17 Thank you: headline with a tiny 朱砂 seal beside it, no clicks
 ];
 
 export const BEAT_COUNT = STEPS.length;

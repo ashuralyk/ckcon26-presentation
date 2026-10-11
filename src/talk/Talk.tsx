@@ -91,9 +91,8 @@ const Scene: React.FC = () => {
         <Tree frame={frame} fps={fps} />
         <Framework frame={frame} fps={fps} />
         <Closing frame={frame} fps={fps} />
-        <Thanks frame={frame} fps={fps} />
       </div>
-      <DigView frame={frame} fps={fps} />
+      <JumpView frame={frame} fps={fps} />
       <AiEra frame={frame} fps={fps} />
       <CatchUp frame={frame} fps={fps} />
       <Overlay frame={frame} fps={fps} />
@@ -2268,7 +2267,7 @@ const Calculators: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   );
 };
 
-/** Beat 13: AI skills for non-coders. The world layer only carries the 02 card into the headline spot; the first-person dig site is a screen-space layer (DigView). */
+/** Beat 13: AI skills for non-coders. The world layer only carries the 02 card into the headline spot; the high-jump stage is a screen-space layer (JumpView). */
 const SK_SEED_FROM = {x: 4760, y: 5520};
 const SK_SEED_TO = {x: 3890, y: 6860};
 
@@ -2318,685 +2317,410 @@ const Skills: React.FC<{frame: number; fps: number}> = ({frame}) => {
   );
 };
 
-/** Beat 13 dig site (screen space, 1920x1080), first person: rock mound + CKB Scripts crystal cluster, the viewer's hands + digger, Cinnabar, the person holding the crystals. */
-const DV_HORIZON = 300;
-/** Iron strikes land on the rock's right shoulder; the golden one next to the crack. */
-const DV_HIT = {x: 1172, y: 494};
-const DV_HIT2 = {x: 1050, y: 488};
-/** Crystal cluster base centre and scale while it is still in the rock; risen base and scale (its slab rests on the person's fists). */
-const DV_CRYSTAL = {x: 970, y: 590, k: 0.9};
-const DV_RISEN = {x: 1060, y: 410, k: 0.95};
-/** The cluster, drawn back to front: base offset, height, half width, tilt (deg), gold-tinted. The hero is last. */
-const DV_CLUSTER: {dx: number; h: number; w: number; tilt: number; gold?: boolean}[] = [
-  {dx: -120, h: 130, w: 32, tilt: -32},
-  {dx: 120, h: 150, w: 34, tilt: 30},
-  {dx: -40, h: 262, w: 30, tilt: -12, gold: true},
-  {dx: 42, h: 282, w: 30, tilt: 12, gold: true},
-  {dx: -70, h: 200, w: 40, tilt: -18},
-  {dx: 70, h: 230, w: 44, tilt: 16},
-  {dx: 0, h: 320, w: 60, tilt: 0},
-];
-const DV_SLAB = "M -132 0 L -104 -18 L -34 -26 L 48 -22 L 112 -12 L 136 4 L 112 30 L -22 36 L -122 26 Z";
-/** Small crystal shards set into the mound's base. */
-const DV_SHARDS = [
-  {x: 700, y: 772, h: 46, tilt: -20},
-  {x: 862, y: 780, h: 36, tilt: 12},
-  {x: 1118, y: 778, h: 40, tilt: -10},
-  {x: 1262, y: 772, h: 50, tilt: 22},
-];
-const DV_CARD = {x: 1720, y: 420};
-const DV_PLATE = {x: 1700, y: 170};
-const DV_NOTE = {x: 340, y: 720};
-const DV_TICK = {x: 1340, y: 150};
-const DV_STICKY = {x: 1500, y: 820};
-/** The person who stands up into frame: feet x, final feet y (below the frame), scale. */
-const DV_SIL = {x: 1060, y: 1028, s: 4.6};
-/** The mound: two halves meeting along a crack under a cleft where the crystals poke out. */
-const DV_ROCK_L = "590,770 610,690 650,610 700,560 770,500 850,462 900,470 930,500 965,525 975,600 955,680 970,770";
-const DV_ROCK_R = "965,525 1000,520 1040,490 1080,458 1140,470 1210,520 1270,590 1310,670 1330,770 970,770 955,680 975,600";
-const DV_CRACK = "M 965 525 L 975 600 L 955 680 L 970 770";
-const DV_BODY = "M-23 -64 C-26 -40 -20 -12 -17 0 L17 0 C20 -12 26 -40 23 -64 C15 -73 0 -75 0 -75 C0 -75 -15 -73 -23 -64 Z";
-/** Digger (pick) tip in tool coordinates: the handle runs along +x, the pick point sits on the -y side of the head. */
-const DV_TIP = {x: 318, y: -210};
-const DV_DEBRIS = Array.from({length: 16}, (_, i) => ({
-  a: (i / 16) * Math.PI * 2 + (i % 3) * 0.2,
-  v: 22 + (i % 5) * 6,
-  size: 16 + (i % 4) * 7,
-  spin: (i % 2 === 0 ? 1 : -1) * (10 + i),
-}));
-/** Tool poses: hands x, hands y, handle angle (deg), tool scale. */
-type DvPose = [number, number, number, number];
-/** Hands position that puts the pick tip on a target for a given angle and scale. */
-const dvStrike = (t: {x: number; y: number}, phi: number, hs: number): DvPose => {
-  const r = (phi * Math.PI) / 180;
-  const ox = (DV_TIP.x * Math.cos(r) - DV_TIP.y * Math.sin(r)) * hs;
-  const oy = (DV_TIP.x * Math.sin(r) + DV_TIP.y * Math.cos(r)) * hs;
-  return [t.x - ox, t.y - oy, phi, hs];
-};
-const DV_REST: DvPose = [1560, 930, -110, 1.25];
-const DV_WIND: DvPose = [1620, 1000, -95, 1.45];
-const DV_STRIKE: DvPose = dvStrike(DV_HIT, -125, 1.3);
-const DV_RECOIL: DvPose = [1490, 820, -112, 1.22];
-const DV_SLUMP: DvPose = [1560, 1060, -150, 1.2];
-const DV_RAISED: DvPose = [1360, 860, -100, 1.3];
-const DV_GWIND: DvPose = [1600, 960, -90, 1.45];
-const DV_GSTRIKE: DvPose = dvStrike(DV_HIT2, -128, 1.3);
-const DV_GRECOIL: DvPose = [1470, 760, -118, 1.25];
-const DV_AFTER: DvPose = [1760, 1260, -150, 1.2];
+/** Beat 13 (screen space, 1920x1080): a side-view high-jump stage. The bar starts far too high, silhouettes fail and give up, AI skills arrives, the bar sinks, and a stream of silhouettes (some non-coders) clears it. */
+const JP_GROUND = 820;
+const JP_POSTS = [1100, 1420];
+const JP_BAR_HIGH = 330;
+const JP_BAR_LOW = 715;
+const JP_POST_TOP = 250;
+const JP_MAT = {x0: 1480, x1: 1800, h: 24};
+const JP_S = 1.6;
+/** Standing hip height in figure units, and the extra height of the landing mat in figure units. */
+const JP_HIP = 44;
+const JP_MAT_U = 15;
+const JP_TAKE = 900;
+const JP_SPOTS = [420, 540, 660];
+const JP_PLATE = {x: 1735, y: 190};
+const JP_CARD = {x: 1735, y: 420};
+const JP_NOTE = {x: 520, y: 300};
 
-const DigView: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
-  const at = beatStart(12);
+/** Pose: lean, head droop, then thigh/knee for the near and far leg, then upper-arm/elbow for the near and far arm (degrees, 0 = hanging straight down, forward positive). */
+type JpPose = number[];
+const JP_STAND: JpPose = [0, 0, 3, 5, -3, 5, 8, 14, -6, 14];
+const JP_TAKEOFF: JpPose = [-3, 0, 80, 100, -28, 45, 165, 10, 150, 20];
+const JP_TUCK: JpPose = [8, 0, 100, 115, 88, 125, 140, 25, 150, 20];
+const JP_LAND: JpPose = [12, 0, 45, 50, 20, 60, 80, 10, 40, 15];
+const JP_FLAIL: JpPose = [-12, 0, 60, 30, -40, 70, 170, 40, 120, 60];
+const JP_LIE: JpPose = [-2, 0, 20, 30, 5, 40, 60, 20, 100, 30];
+const JP_SIT: JpPose = [40, 16, 88, 0, 84, 8, 28, 40, 18, 48];
+
+const jpRun = (ph: number, amp: number): JpPose => {
+  const s = Math.sin(ph);
+  const c = Math.cos(ph);
+  return [
+    10 * amp,
+    0,
+    46 * amp * s,
+    18 + 70 * amp * Math.max(0, c),
+    -46 * amp * s,
+    18 + 70 * amp * Math.max(0, -c),
+    -45 * amp * s,
+    70 * amp + 10,
+    45 * amp * s,
+    70 * amp + 10,
+  ];
+};
+
+type JpBlock = {
+  f0: number;
+  f1: number;
+  x0: number;
+  x1: number;
+  h0?: number;
+  h1?: number;
+  rot0?: number;
+  rot1?: number;
+  d0?: number;
+  d1?: number;
+  arc?: number;
+  dir?: 1 | -1;
+  smooth?: boolean;
+  poses: (JpPose | "run")[];
+};
+
+type JpState = {x: number; h: number; rot: number; d: number; dir: 1 | -1; pose: JpPose};
+
+const jpEval = (frame: number, blocks: JpBlock[], seed: number): JpState | null => {
+  let b: JpBlock | null = null;
+  for (const c of blocks) {
+    if (frame >= c.f0) {
+      b = c;
+    }
+  }
+  if (!b) {
+    return null;
+  }
+  const u = Math.min(1, Math.max(0, (frame - b.f0) / Math.max(1, b.f1 - b.f0)));
+  const e = b.smooth ? u * u * (3 - 2 * u) : u;
+  const ph = 0.6 * frame + seed;
+  const keys = b.poses.map((p) => (p === "run" ? jpRun(ph, 1) : p));
+  const f = Math.min(keys.length - 1 - 1e-9, u * (keys.length - 1));
+  const i = keys.length === 1 ? 0 : Math.floor(f);
+  const k = keys.length === 1 ? 0 : f - i;
+  const pose = keys.length === 1 ? keys[0] : keys[i].map((v, j) => v + (keys[i + 1][j] - v) * k);
+  const running = b.poses[0] === "run" && b.arc === undefined;
+  const h0 = b.h0 ?? JP_HIP;
+  const h1 = b.h1 ?? h0;
+  return {
+    x: b.x0 + (b.x1 - b.x0) * e,
+    h: h0 + (h1 - h0) * e + ((b.arc ?? 0) / JP_S) * 4 * u * (1 - u) - (running ? 3 * Math.abs(Math.sin(ph)) : 0),
+    rot: (b.rot0 ?? 0) + ((b.rot1 ?? b.rot0 ?? 0) - (b.rot0 ?? 0)) * e,
+    d: (b.d0 ?? 0) + ((b.d1 ?? b.d0 ?? 0) - (b.d0 ?? 0)) * e,
+    dir: b.dir ?? 1,
+    pose,
+  };
+};
+
+/** A failed attempt: run up, jump far too short, tumble back, get up, jog back to the waiting spot at the back. */
+const jpFail = (f0: number, fromX: number, spot: number, H: number, fromBack: boolean): JpBlock[] => {
+  const out: JpBlock[] = [];
+  let t = f0;
+  if (fromBack) {
+    out.push({f0: t, f1: t + 8, x0: fromX, x1: fromX, d0: 1, d1: 0, smooth: true, poses: [JP_STAND]});
+    t += 8;
+  }
+  const n = Math.max(6, Math.round((JP_TAKE - fromX) / 22));
+  out.push({f0: t, f1: t + n, x0: fromX, x1: JP_TAKE, poses: ["run"]});
+  t += n;
+  out.push({f0: t, f1: t + 22, x0: JP_TAKE, x1: 1000, arc: H, rot1: -30, poses: ["run", JP_TAKEOFF, JP_FLAIL, JP_FLAIL]});
+  t += 22;
+  out.push({f0: t, f1: t + 10, x0: 1000, x1: 970, h0: JP_HIP, h1: 10, rot0: -30, rot1: -88, smooth: true, poses: [JP_FLAIL, JP_LIE]});
+  t += 10;
+  out.push({f0: t, f1: t + 4, x0: 970, x1: 970, h0: 10, rot0: -88, poses: [JP_LIE]});
+  t += 4;
+  out.push({f0: t, f1: t + 10, x0: 970, x1: 970, h0: 10, h1: JP_HIP, rot0: -88, rot1: 0, smooth: true, poses: [JP_LIE, JP_STAND]});
+  t += 10;
+  out.push({f0: t, f1: t + 26, x0: 970, x1: spot, d0: 0, d1: 1, dir: -1, poses: ["run", "run", JP_STAND]});
+  return out;
+};
+
+/** A clean jump over the low bar, landing on the mat and running off the right edge. */
+const jpClear = (f0: number, fromX: number, H: number): JpBlock[] => {
+  const n = Math.max(6, Math.round((JP_TAKE - fromX) / 24));
+  return [
+    {f0, f1: f0 + n, x0: fromX, x1: JP_TAKE, poses: ["run"]},
+    {f0: f0 + n, f1: f0 + n + 32, x0: JP_TAKE, x1: 1530, h1: JP_HIP + JP_MAT_U, arc: H, poses: ["run", JP_TAKEOFF, JP_TUCK, JP_TUCK, JP_LAND]},
+    {f0: f0 + n + 32, f1: f0 + n + 43, x0: 1530, x1: 1780, h0: JP_HIP + JP_MAT_U, poses: ["run"]},
+    {f0: f0 + n + 43, f1: f0 + n + 52, x0: 1780, x1: 2040, h0: JP_HIP + JP_MAT_U, h1: JP_HIP, poses: ["run"]},
+  ];
+};
+
+/** Figure geometry in figure units: origin at the hip, y down. */
+const jpGeom = (pose: JpPose) => {
+  const [lean, head, tA, kA, tB, kB, uA, eA, uB, eB] = pose;
+  const r = (d: number) => (d * Math.PI) / 180;
+  const L = r(lean);
+  const neck = {x: 38 * Math.sin(L), y: -38 * Math.cos(L)};
+  const hd = {x: neck.x + 13 * Math.sin(L) + head * 0.6, y: neck.y - 13 * Math.cos(L) + head * 0.5};
+  const sh = {x: neck.x * 0.88, y: neck.y * 0.88};
+  const leg = (t: number, k: number) => {
+    const knee = {x: 22 * Math.sin(r(t)), y: 22 * Math.cos(r(t))};
+    return [knee, {x: knee.x + 22 * Math.sin(r(t - k)), y: knee.y + 22 * Math.cos(r(t - k))}];
+  };
+  const arm = (u: number, e: number) => {
+    const el = {x: sh.x + 16 * Math.sin(r(u)), y: sh.y + 16 * Math.cos(r(u))};
+    return [el, {x: el.x + 16 * Math.sin(r(u + e)), y: el.y + 16 * Math.cos(r(u + e))}];
+  };
+  return {neck, hd, sh, legA: leg(tA, kA), legB: leg(tB, kB), armA: arm(uA, eA), armB: arm(uB, eB)};
+};
+
+type JpPlayer = {blocks: JpBlock[]; seed: number; cup?: boolean; tag?: boolean};
+
+const JpFigure: React.FC<{state: JpState; frame: number; cup?: boolean}> = ({state, frame, cup}) => {
+  const g = jpGeom(state.pose);
+  const sc = JP_S * (1 - 0.18 * state.d);
+  const gy = JP_GROUND - 34 * state.d;
+  const hipY = gy - state.h * sc;
+  const pts = (a: {x: number; y: number}[]) => `0,0 ${a.map((p) => `${p.x},${p.y}`).join(" ")}`;
+  const sholder = `${g.sh.x},${g.sh.y}`;
+  const arm = (a: {x: number; y: number}[]) => `${sholder} ${a.map((p) => `${p.x},${p.y}`).join(" ")}`;
+  const hand = g.armA[1];
+  return (
+    <g transform={`translate(${state.x} ${hipY}) rotate(${state.rot * state.dir}) scale(${state.dir * sc} ${sc})`} opacity={1 - 0.22 * state.d}>
+      <polyline points={pts(g.legB)} fill="none" stroke={INK} strokeWidth={11} strokeLinecap="round" strokeLinejoin="round" opacity={0.85} />
+      <polyline points={arm(g.armB)} fill="none" stroke={INK} strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" opacity={0.85} />
+      <line x1={0} y1={0} x2={g.neck.x} y2={g.neck.y} stroke={INK} strokeWidth={17} strokeLinecap="round" />
+      <circle cx={g.hd.x} cy={g.hd.y} r={13} fill={INK} />
+      <polyline points={pts(g.legA)} fill="none" stroke={INK} strokeWidth={11} strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points={arm(g.armA)} fill="none" stroke={INK} strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" />
+      {cup ? (
+        <g transform={`translate(${hand.x} ${hand.y})`}>
+          <path d="M -6 -9 L 6 -9 L 5 6 L -5 6 Z" fill={CARD} stroke={INK} strokeWidth={2.2} strokeLinejoin="round" />
+          <path d="M 6 -5 Q 13 -4 6 2" fill="none" stroke={INK} strokeWidth={2.2} />
+          <path d={`M -2 -13 q 3 -4 0 -8 q -3 -4 0 -8`} fill="none" stroke={INK} strokeWidth={1.8} opacity={0.35 + 0.15 * Math.sin(frame / 5)} />
+        </g>
+      ) : null}
+    </g>
+  );
+};
+
+const JumpView: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   const next = beatStart(13);
   const s1 = stepStart(12, 1);
   const s2 = stepStart(12, 2);
   const s3 = stepStart(12, 3);
   const s4 = stepStart(12, 4);
-  if (frame < at + 46 || frame >= next + 30) {
+  if (frame < s1 || frame >= next + 30) {
     return null;
   }
-  const clamp = {extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as const};
-  const inP = linear(frame, at + 50, at + 80, 0, 1);
   const exit = deskDrift(frame, next, {x: 1, y: -0.4});
-  // Digger pose keyframes: three iron strikes, slump; raised during the magic; one golden strike, then the hands drop away.
-  const hits = [s1 + 28, s1 + 58, s1 + 88];
-  const goldHit = s4 + 16;
-  const keys: [number, DvPose][] = [
-    [s1, DV_REST],
-    ...hits.flatMap((h): [number, DvPose][] => [
-      [h - 14, DV_REST],
-      [h - 6, DV_WIND],
-      [h, DV_STRIKE],
-      [h + 5, DV_RECOIL],
-      [h + 12, DV_REST],
-    ]),
-    [s1 + 104, DV_REST],
-    [s1 + 124, DV_SLUMP],
-    [s3, DV_SLUMP],
-    [s3 + 16, DV_RAISED],
-    [s4 + 4, DV_RAISED],
-    [s4 + 10, DV_GWIND],
-    [goldHit, DV_GSTRIKE],
-    [goldHit + 6, DV_GRECOIL],
-    [goldHit + 34, DV_AFTER],
-  ];
-  const ch = (i: number) => interpolate(frame, keys.map((k) => k[0]), keys.map((k) => k[1][i]), clamp);
-  const hx = ch(0);
-  const hy = ch(1) + 320 * (1 - linear(frame, s1, s1 + 12, 0, 1));
-  const phi = ch(2);
-  const hs = ch(3);
-  const pr = (phi * Math.PI) / 180;
-  const along = (d: number) => ({x: hx + d * hs * Math.cos(pr), y: hy + d * hs * Math.sin(pr)});
-  const head = along(362);
-  const fist2 = along(78);
-  const handsOn = frame >= s1 && frame < goldHit + 34;
-  // Shake and zoom pulses on hits; a gentle push toward the crystal in step 4.
-  const pulse = (h: number, amp: number) => {
-    const t = frame - h;
-    return t >= 0 && t < 30 ? {x: amp * Math.exp(-t / 5) * Math.sin(t * 2.6), z: (amp / 600) * Math.exp(-t / 6)} : {x: 0, z: 0};
-  };
-  const pulses = [...hits.map((h) => pulse(h, 14)), pulse(goldHit, 34)];
-  const shakeX = pulses.reduce((a, p) => a + p.x, 0);
-  const push = 0.04 * eased(frame, goldHit + 10, next);
-  const zoom = 1 + push + pulses.reduce((a, p) => a + p.z, 0);
-  const nicks = frame >= hits[2] ? 3 : frame >= hits[1] ? 2 : frame >= hits[0] ? 1 : 0;
-  const noteP = slam(frame, fps, s1, 110);
-  const noteOut = deskDrift(frame, s3, {x: -0.3, y: 1});
-  // Step 2: Cinnabar's plate + the AI skills card on a small cart slide in from the right.
-  const entry = interpolate(frame, [s2 + 4, s2 + 28], [0, 1], {...clamp, easing: Easing.out(Easing.back(1.5))});
+  // Stage entrance (step 1).
+  const groundP = linear(frame, s1, s1 + 16, 0, 1);
+  const postsP = eased(frame, s1 + 8, s1 + 26);
+  const barP = eased(frame, s1 + 22, s1 + 38);
+  const labelP = slam(frame, fps, s1, 38);
+  const matP = linear(frame, s1 + 16, s1 + 28, 0, 1);
+  // The bar sinks when AI skills arrives (step 3); the label follows it.
+  const barY = JP_BAR_HIGH + (JP_BAR_LOW - JP_BAR_HIGH) * eased(frame, s3 + 40, s3 + 94);
+  // AI skills plate and card.
+  const entry = interpolate(frame, [s3 + 4, s3 + 28], [0, 1], {extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.back(1.5))});
   const entryX = 620 * (1 - entry);
-  const burstT = linear(frame, s2 + 26, s2 + 46, 0, 1);
-  const castOn = linear(frame, s3 + 8, s3 + 16, 0, 1) * (1 - linear(frame, s3 + 62, s3 + 72, 0, 1));
-  const cardGlow = 0.55 + 0.45 * (0.5 - 0.5 * Math.cos((2 * Math.PI * Math.max(0, frame - (s2 + 28))) / 40)) + 0.6 * castOn;
-  // Step 3: magic circle, particles, iron -> gold.
-  const circleDraw = interpolate(frame, [s3 + 14, s3 + 36], [0, 1], {...clamp, easing: Easing.out(Easing.cubic)});
-  const magicFade = 1 - linear(frame, s3 + 70, s3 + 92, 0, 1);
-  const goldP = interpolate(frame, [s3 + 44, s3 + 64], [0, 1], {...clamp, easing: Easing.inOut(Easing.quad)});
-  const flashT = linear(frame, s3 + 64, s3 + 80, 0, 1);
-  const halo = frame >= s3 + 64 ? linear(frame, s3 + 64, s3 + 74, 0, 1) * (1 - linear(frame, goldHit, goldHit + 6, 0, 1)) : 0;
-  const haloPulse = 0.5 - 0.5 * Math.cos((2 * Math.PI * Math.max(0, frame - (s3 + 64))) / 36);
-  // Step 4: the rock splits, rubble flies at the viewer, the crystal rises; a person stands up into frame and holds it.
-  const split = interpolate(frame, [goldHit, goldHit + 24], [0, 1], {...clamp, easing: Easing.out(Easing.cubic)});
-  const rockOp = 1 - linear(frame, goldHit + 14, goldHit + 30, 0, 1);
-  const flash = interpolate(frame, [goldHit + 1, goldHit + 5, goldHit + 22], [0, 0.75, 0], clamp);
-  const shockT = linear(frame, goldHit + 2, goldHit + 26, 0, 1);
-  const rise = interpolate(frame, [goldHit + 8, goldHit + 40], [0, 1], {...clamp, easing: Easing.out(Easing.back(1.3))});
-  const rayP = linear(frame, goldHit + 24, goldHit + 40, 0, 1);
-  const silU = interpolate(frame, [goldHit + 40, goldHit + 66], [0, 1], {...clamp, easing: Easing.out(Easing.cubic)});
-  const hop = 16 * Math.sin(Math.PI * linear(frame, goldHit + 70, goldHit + 84, 0, 1));
-  const feetY = DV_SIL.y + 520 * (1 - silU) - hop;
-  const cK = DV_CRYSTAL.k + (DV_RISEN.k - DV_CRYSTAL.k) * rise;
-  const cBase = {x: DV_CRYSTAL.x + (DV_RISEN.x - DV_CRYSTAL.x) * rise, y: DV_CRYSTAL.y + (DV_RISEN.y - DV_CRYSTAL.y) * rise - hop};
-  const cCenter = {x: cBase.x, y: cBase.y - 150 * cK};
-  const crystalGlow = 0.35 + 0.15 * Math.sin((2 * Math.PI * (frame - at)) / 50) + 0.4 * rayP;
-  // Tag string from the left crystal's shoulder; the tag hangs out to the left.
-  const tagAnchor = {x: cBase.x - 96 * cK, y: cBase.y - 150 * cK};
-  const tagAt = {x: tagAnchor.x - 500, y: tagAnchor.y - 70};
-  const crackGlow = 0.55 + 0.25 * Math.sin((2 * Math.PI * (frame - at)) / 46);
-  const tickP = slam(frame, fps, s4, 104);
-  const stickyP = slam(frame, fps, s4, 114);
-  const ironFill = "#8F8B84";
-  const digger = (gold: boolean) => {
-    const metal = gold ? "url(#dvGold)" : ironFill;
-    const edge = gold ? "#6B3F10" : INK;
-    return (
-      <>
-        <rect x={-50} y={-13} width={380} height={26} rx={9} fill={gold ? "url(#dvGold)" : "#7A6A55"} stroke={edge} strokeWidth={3} />
-        {[0, 1, 2].map((i) => (
-          <line key={i} x1={-30 + i * 22} y1={-12} x2={-36 + i * 22} y2={12} stroke={edge} strokeWidth={2} opacity={0.45} />
-        ))}
-        <path d="M 340 -24 Q 372 -110 318 -210 Q 400 -120 386 -24 Z" fill={metal} stroke={edge} strokeWidth={4} strokeLinejoin="round" />
-        <path d="M 340 24 Q 366 96 334 168 L 372 176 Q 398 96 386 24 Z" fill={metal} stroke={edge} strokeWidth={4} strokeLinejoin="round" />
-        <rect x={334} y={-30} width={58} height={60} rx={8} fill={metal} stroke={edge} strokeWidth={4} />
-        <path d="M 352 -40 Q 372 -110 336 -180" stroke="#FFFFFF" strokeWidth={5} fill="none" opacity={gold ? 0.8 : 0.4} strokeLinecap="round" />
-        <path d="M 350 40 Q 368 96 348 150" stroke="#FFFFFF" strokeWidth={4} fill="none" opacity={gold ? 0.7 : 0.3} strokeLinecap="round" />
-      </>
-    );
-  };
-  const spark = (h: number, p: {x: number; y: number}, gold: boolean) => {
-    const t = frame - h;
-    const life = gold ? 18 : 12;
-    if (t < 0 || t >= life) {
-      return null;
-    }
-    const k = t / life;
-    return (
-      <g key={h} opacity={1 - k}>
-        <circle cx={p.x} cy={p.y} r={(gold ? 50 : 18) + (gold ? 200 : 60) * k} fill={gold ? "#FBE7A6" : "#FFF6D2"} opacity={0.8} />
-        {Array.from({length: 14}, (_, i) => {
-          const a = (i / 14) * Math.PI * 2;
-          const r0 = 20 + (gold ? 160 : 60) * k;
-          const r1 = r0 + (gold ? 90 : 44) * (1 - k * 0.5);
-          return (
-            <line
-              key={i}
-              x1={p.x + r0 * Math.cos(a)}
-              y1={p.y + r0 * Math.sin(a)}
-              x2={p.x + r1 * Math.cos(a)}
-              y2={p.y + r1 * Math.sin(a)}
-              stroke={gold ? (i % 2 === 0 ? "#E7B94C" : CINNABAR) : i % 3 === 0 ? INK : "#E7B94C"}
-              strokeWidth={gold ? 10 : 6}
-              strokeLinecap="round"
-            />
-          );
-        })}
-        {gold
-          ? null
-          : [0, 1, 2, 3, 4].map((i) => {
-              const a = -2.6 + i * 0.45;
-              const v = 9 + (i % 3) * 3;
-              return (
-                <polygon
-                  key={`c${i}`}
-                  points="-9,6 0,-10 10,5"
-                  transform={`translate(${p.x + v * t * Math.cos(a)} ${p.y + v * t * Math.sin(a) + 1.2 * t * t}) rotate(${t * 30 * (i % 2 === 0 ? 1 : -1)})`}
-                  fill="#B9AE96"
-                  stroke={INK}
-                  strokeWidth={2}
-                />
-              );
-            })}
-      </g>
-    );
-  };
-  const arm = (bx: number, f: {x: number; y: number}, key: string) => {
-    const dx = f.x - bx;
-    const dy = f.y - 1170;
-    const len = Math.hypot(dx, dy) || 1;
-    const sx = bx + dx * 0.45;
-    const sy = 1170 + dy * 0.45;
-    const nx = -dy / len;
-    const ny = dx / len;
-    return (
-      <g key={key}>
-        <line x1={bx} y1={1170} x2={f.x} y2={f.y} stroke={INK} strokeWidth={96} strokeLinecap="round" />
-        <line x1={bx} y1={1170} x2={sx} y2={sy} stroke={INK} strokeWidth={136} strokeLinecap="round" />
-        <line x1={bx} y1={1170} x2={sx} y2={sy} stroke="#EFE6D2" strokeWidth={124} strokeLinecap="round" />
-        {[0, 1].map((j) => {
-          const cx = sx - (dx / len) * (16 + j * 14);
-          const cy = sy - (dy / len) * (16 + j * 14);
-          return <line key={j} x1={cx - nx * 58} y1={cy - ny * 58} x2={cx + nx * 58} y2={cy + ny * 58} stroke={INK} strokeWidth={3} opacity={0.6} />;
-        })}
-        <circle cx={f.x} cy={f.y} r={50} fill={INK} />
-        <path d={`M ${f.x - 26} ${f.y - 20} L ${f.x - 6} ${f.y - 26} M ${f.x - 30} ${f.y} L ${f.x - 8} ${f.y - 4}`} stroke="#EFE6D2" strokeWidth={3} opacity={0.35} strokeLinecap="round" />
-      </g>
-    );
-  };
-  const prism = (c: {dx: number; h: number; w: number; tilt: number; gold?: boolean}, i: number) => {
-    const sh = -c.h + 1.08 * c.w;
-    const ridge = sh + 0.4 * c.w;
-    const f = c.gold ? ["#F3DC94", "#C8902F", "#FBE7A6", "#E7B94C"] : ["#E2553A", "#A8261A", "#F39A80", "#C9432C"];
-    return (
-      <g key={i} transform={`translate(${c.dx} 0) rotate(${c.tilt})`}>
-        <polygon points={`0,${-c.h} ${-c.w},${sh} ${-0.92 * c.w},0 0,0`} fill={f[0]} />
-        <polygon points={`0,${-c.h} ${c.w},${sh} ${0.92 * c.w},0 0,0`} fill={f[1]} />
-        <polygon points={`0,${-c.h} ${-c.w},${sh} 0,${ridge}`} fill={f[2]} />
-        <polygon points={`0,${-c.h} ${c.w},${sh} 0,${ridge}`} fill={f[3]} />
-        <path d={`M ${-c.w} ${sh} L 0 ${ridge} L ${c.w} ${sh} M 0 ${ridge} L 0 0`} stroke="#FFE9DD" strokeWidth={2} opacity={0.7} fill="none" />
-        <polygon points={`0,${-c.h} ${c.w},${sh} ${0.92 * c.w},0 ${-0.92 * c.w},0 ${-c.w},${sh}`} fill="none" stroke={INK} strokeWidth={4} strokeLinejoin="round" />
-        <line x1={-0.66 * c.w} y1={sh + 18} x2={-0.62 * c.w} y2={-14} stroke="#FFFFFF" strokeWidth={5} opacity={0.45} strokeLinecap="round" />
-      </g>
-    );
-  };
-  const crystal = (
-    <g transform={`translate(${cBase.x} ${cBase.y}) scale(${cK})`}>
-      {DV_CLUSTER.map((c, i) => prism(c, i))}
-      <path d={DV_SLAB} fill="#CFC5B0" stroke={INK} strokeWidth={4} strokeLinejoin="round" />
-      <path d="M -104 -18 L -34 -26 L 48 -22 L 112 -12 L 60 -4 L -60 -6 Z" fill="#DCD3BF" />
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <line key={i} x1={-96 + i * 34} y1={28} x2={-84 + i * 34} y2={8} stroke={INK} strokeWidth={2} opacity={0.35} />
-      ))}
-    </g>
-  );
-  const tag = (
-    <g>
-      <path d={`M ${tagAnchor.x} ${tagAnchor.y} Q ${tagAnchor.x - 40} ${tagAnchor.y - 10} ${tagAt.x + 396} ${tagAt.y + 4}`} stroke={INK} strokeWidth={3.5} fill="none" />
-      <g transform={`translate(${tagAt.x} ${tagAt.y}) rotate(-4 210 0)`}>
-        <rect x={4} y={-42} width={420} height={96} fill={INK} opacity={0.12} />
-        <rect x={0} y={-48} width={420} height={96} fill={CARD} stroke={INK} strokeWidth={3.5} />
-        <circle cx={396} cy={4} r={9} fill={PAPER} stroke={INK} strokeWidth={3} />
-        <rect x={-10} y={-60} width={84} height={24} fill="rgba(255,255,255,0.72)" transform="rotate(-10 32 -48)" />
-        <text x={198} y={21} textAnchor="middle" fontFamily={MONO} fontWeight={800} fontSize={52} letterSpacing="1" fill={INK}>
-          CKB Scripts
-        </text>
-      </g>
-    </g>
-  );
-  const silOn = silU > 0;
+  const burstT = linear(frame, s3 + 26, s3 + 46, 0, 1);
+  const cardGlow = 0.55 + 0.45 * (0.5 - 0.5 * Math.cos((2 * Math.PI * Math.max(0, frame - (s3 + 28))) / 40));
+  const note1P = slam(frame, fps, s2, 60);
+  const note1Out = deskDrift(frame, s3, {x: -0.3, y: 1});
+  const note2P = slam(frame, fps, s4, 70);
+
+  // Players. The first three (coders) fail twice, give up, get up, then lead the stream; the rest only run in step 4.
+  const fails = [130, 110, 90];
+  const players: JpPlayer[] = [];
+  JP_SPOTS.forEach((spot, i) => {
+    const att1 = jpFail(s1 + 28 + 34 * i, -100, spot, 180 - 20 * i, false);
+    const att2 = jpFail(s2 + 4 + 26 * i, spot, spot, fails[i], true);
+    const sitAt = att2[att2.length - 1].f1;
+    const blocks: JpBlock[] = [
+      ...att1,
+      ...att2,
+      {f0: sitAt, f1: sitAt + 14, x0: spot, x1: spot, d0: 1, d1: 1, h0: JP_HIP, h1: 7, smooth: true, poses: [JP_STAND, JP_SIT]},
+      {f0: s3 + 92, f1: s3 + 106, x0: spot, x1: spot, d0: 1, d1: 1, h0: 7, h1: JP_HIP, smooth: true, poses: [JP_SIT, JP_STAND]},
+      {f0: s3 + 108, f1: s3 + 124, x0: spot, x1: spot, d0: 1, d1: 0, smooth: true, poses: [JP_STAND]},
+      ...jpClear(s4 + 4 + 18 * (2 - i), spot, 150),
+    ];
+    players.push({blocks, seed: i * 2.1});
+  });
+  for (let k = 0; k < 6; k++) {
+    players.push({
+      blocks: jpClear(s4 + 58 + 18 * k, -100, 140 + 20 * (k % 3)),
+      seed: 1.3 + k * 1.7,
+      cup: k === 0 || k === 2 || k === 4,
+      tag: k === 2 || k === 4,
+    });
+  }
+  const states = players
+    .map((p) => ({p, st: jpEval(frame, p.blocks, p.seed)}))
+    .filter((q): q is {p: JpPlayer; st: JpState} => q.st !== null && q.st.x > -260 && q.st.x < 2200)
+    .sort((a, b) => b.st.d - a.st.d);
+  const postUp = (JP_GROUND - JP_POST_TOP) * postsP;
   return (
-    <AbsoluteFill
-      style={{
-        pointerEvents: "none",
-        opacity: inP * exit.opacity,
-        transformOrigin: "960px 420px",
-        transform: `translate(${exit.dx + shakeX}px, ${exit.dy + 40 * (1 - inP)}px) rotate(${exit.spin}deg) scale(${zoom})`,
-      }}
-    >
-      <svg width={1920} height={1080} style={{position: "absolute", left: 0, top: 0, overflow: "visible"}}>
-        <defs>
-          <linearGradient id="dvGold" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#8E5A1C" />
-            <stop offset="0.25" stopColor="#F3DC94" />
-            <stop offset="0.45" stopColor="#C8902F" />
-            <stop offset="0.65" stopColor="#FBE7A6" />
-            <stop offset="1" stopColor="#A8681F" />
-          </linearGradient>
-          <radialGradient id="dvVignette" cx="0.5" cy="0.45" r="0.75">
-            <stop offset="0.5" stopColor={INK} stopOpacity={0} />
-            <stop offset="1" stopColor={INK} stopOpacity={0.28} />
-          </radialGradient>
-          <radialGradient id="dvWarm">
-            <stop offset="0" stopColor="#FFF3C4" stopOpacity={0.9} />
-            <stop offset="1" stopColor="#FFF3C4" stopOpacity={0} />
-          </radialGradient>
-          <radialGradient id="dvGlow">
-            <stop offset="0" stopColor={CINNABAR} stopOpacity={0.55} />
-            <stop offset="1" stopColor={CINNABAR} stopOpacity={0} />
-          </radialGradient>
-          <radialGradient id="dvShadow">
-            <stop offset="0.3" stopColor={INK} stopOpacity={0.2} />
-            <stop offset="1" stopColor={INK} stopOpacity={0} />
-          </radialGradient>
-          <clipPath id="dvGoldClip">
-            <rect x={-60} y={-230} width={470 * goldP} height={460} />
-          </clipPath>
-        </defs>
-        {/* The dig site seen from where the viewer stands: paper sky, ground in perspective. */}
-        <rect x={-300} y={-300} width={2520} height={DV_HORIZON + 300} fill={PAPER} />
-        <rect x={-300} y={DV_HORIZON} width={2520} height={1080} fill="#ECE3CD" />
-        <path d={`M -300 ${DV_HORIZON} Q 300 ${DV_HORIZON - 40} 700 ${DV_HORIZON - 14} T 1400 ${DV_HORIZON - 24} T 2220 ${DV_HORIZON - 10}`} fill="none" stroke={INK} strokeWidth={2} opacity={0.25} />
-        <line x1={-300} y1={DV_HORIZON} x2={2220} y2={DV_HORIZON} stroke={INK} strokeWidth={2.5} opacity={0.35} />
-        {Array.from({length: 15}, (_, i) => (
-          <line key={`r${i}`} x1={960} y1={DV_HORIZON} x2={-1700 + i * 380} y2={1400} stroke={INK} strokeWidth={1.5} opacity={0.08} />
-        ))}
-        {Array.from({length: 8}, (_, i) => {
-          const y = DV_HORIZON + 900 * Math.pow((i + 1) / 8, 2);
-          return <line key={`h${i}`} x1={-300} y1={y} x2={2220} y2={y} stroke={INK} strokeWidth={1.5} opacity={0.07} />;
-        })}
-        {[{x: 380, y: 860, r: 26}, {x: 1530, y: 900, r: 20}, {x: 520, y: 420, r: 12}, {x: 1420, y: 400, r: 10}, {x: 260, y: 520, r: 14}].map((p, i) => (
-          <ellipse key={`p${i}`} cx={p.x} cy={p.y} rx={p.r * 1.5} ry={p.r} fill="#D4C9B0" stroke={INK} strokeWidth={2} opacity={0.6} />
-        ))}
-        {/* Rays and glow behind the crystal. */}
-        {rayP > 0 ? (
-          <g transform={`translate(${cCenter.x} ${cCenter.y}) rotate(${(frame - goldHit) * 0.5})`} opacity={rayP}>
-            {Array.from({length: 16}, (_, i) => {
-              const a = (i / 16) * Math.PI * 2;
-              const b = a + 0.11;
-              return <polygon key={i} points={`0,0 ${380 * Math.cos(a)},${380 * Math.sin(a)} ${380 * Math.cos(b)},${380 * Math.sin(b)}`} fill={i % 2 === 0 ? "#E7B94C" : CINNABAR} opacity={0.3} />;
-            })}
-          </g>
-        ) : null}
-        <circle cx={cCenter.x} cy={cCenter.y + 30} r={220 * cK} fill="url(#dvGlow)" opacity={crystalGlow} />
-        {/* The crystal sits behind the rock until it rises. */}
-        {silOn ? null : crystal}
-        {/* Rock mound in two halves along its crack; they split apart at the golden strike. */}
-        {rockOp > 0 ? (
-          <g opacity={rockOp}>
-            <ellipse cx={965} cy={778} rx={440 + 120 * split} ry={46} fill="url(#dvShadow)" />
-            {/* Left half: main body, lit top planes, a shaded flank with hatching, ridges, a front boulder, shards and tufts. */}
-            <g transform={`translate(${-240 * split} ${90 * split * split}) rotate(${-16 * split} 590 770)`}>
-              <polygon points={DV_ROCK_L} fill="#CDC2AA" stroke={INK} strokeWidth={5} strokeLinejoin="round" />
-              <polygon points="700,560 770,500 850,462 900,470 860,530 760,580" fill="#DED5C1" />
-              <polygon points="900,470 930,500 965,525 940,590 860,530" fill="#D6CCB6" />
-              <polygon points="610,690 650,610 700,560 760,580 720,660 660,720" fill="#B9AE95" />
-              {Array.from({length: 9}, (_, i) => (
-                <line key={i} x1={628 + i * 14} y1={712 - i * 15} x2={652 + i * 14} y2={738 - i * 15} stroke={INK} strokeWidth={2} opacity={0.32} />
-              ))}
-              <path d="M 760 580 L 860 530 L 940 590 M 720 660 L 830 650 L 900 700 M 860 530 L 850 640" stroke={INK} strokeWidth={2.5} opacity={0.4} fill="none" strokeLinejoin="round" />
-              <path d="M 800 512 L 822 530 M 878 486 L 892 504 M 680 620 L 700 610" stroke={INK} strokeWidth={3} opacity={0.5} strokeLinecap="round" />
-              <path d="M 676 784 L 700 712 L 760 690 L 820 704 L 850 784 Z" fill="#C3B79D" stroke={INK} strokeWidth={4} strokeLinejoin="round" />
-              <path d="M 700 712 L 760 690 L 820 704 L 770 716 Z" fill="#D8CEB8" />
-              {[0, 1, 2, 3].map((i) => (
-                <line key={i} x1={790 + i * 12} y1={764} x2={806 + i * 12} y2={736} stroke={INK} strokeWidth={2} opacity={0.3} />
-              ))}
-              {DV_SHARDS.slice(0, 2).map((d, i) => (
-                <g key={i} transform={`translate(${d.x} ${d.y}) rotate(${d.tilt})`}>
-                  <polygon points={`0,${-d.h} ${-d.h * 0.3},${-d.h * 0.62} ${-d.h * 0.26},0 ${d.h * 0.26},0 ${d.h * 0.3},${-d.h * 0.62}`} fill="#D9452E" stroke={INK} strokeWidth={3} strokeLinejoin="round" />
-                  <polygon points={`0,${-d.h} ${d.h * 0.3},${-d.h * 0.62} ${d.h * 0.26},0 0,0`} fill="#A8261A" />
-                </g>
-              ))}
-              {[600, 650, 872].map((x, i) => (
-                <path key={i} d={`M ${x} 772 L ${x - 6} 752 M ${x + 4} 772 L ${x + 6} 748 M ${x + 8} 772 L ${x + 16} 756`} stroke={INK} strokeWidth={2.5} opacity={0.6} strokeLinecap="round" />
-              ))}
-              <ellipse cx={560} cy={776} rx={16} ry={9} fill="#D4C9B0" stroke={INK} strokeWidth={2} />
-              <ellipse cx={898} cy={790} rx={12} ry={7} fill="#D4C9B0" stroke={INK} strokeWidth={2} />
+    <AbsoluteFill style={{pointerEvents: "none"}}>
+      <div style={cssDrift(exit, 960, 540)}>
+        <svg width={1920} height={1080} style={{position: "absolute", left: 0, top: 0, overflow: "visible"}}>
+          {/* Ground with a few ink ticks under it. */}
+          <path d="M 60 820 L 1860 820" fill="none" stroke={INK} strokeWidth={6} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - groundP} />
+          {Array.from({length: 28}, (_, i) => 120 + i * 62).map((x) => (
+            <line key={x} x1={x} y1={836} x2={x - 16} y2={852} stroke={INK} strokeWidth={2.5} opacity={0.3 * groundP} strokeLinecap="round" />
+          ))}
+          {/* Landing mat. */}
+          <rect x={JP_MAT.x0} y={JP_GROUND - JP_MAT.h} width={JP_MAT.x1 - JP_MAT.x0} height={JP_MAT.h} rx={8} fill={FOLDER} stroke={INK} strokeWidth={4} opacity={matP} />
+          {/* Posts with ruler ticks, and the bar. */}
+          {JP_POSTS.map((x, pi) => (
+            <g key={x}>
+              <line x1={x} y1={JP_GROUND} x2={x} y2={JP_GROUND - postUp} stroke={INK} strokeWidth={9} strokeLinecap="round" />
+              {Array.from({length: 8}, (_, i) => JP_GROUND - 70 * (i + 1)).map((y) =>
+                JP_GROUND - y <= postUp ? <line key={y} x1={x + (pi === 0 ? -9 : 9)} y1={y} x2={x + (pi === 0 ? -26 : 26)} y2={y} stroke={INK} strokeWidth={3} opacity={0.5} strokeLinecap="round" /> : null,
+              )}
             </g>
-            {/* Right half. */}
-            <g transform={`translate(${240 * split} ${90 * split * split}) rotate(${16 * split} 1330 770)`}>
-              <polygon points={DV_ROCK_R} fill="#BFB399" stroke={INK} strokeWidth={5} strokeLinejoin="round" />
-              <polygon points="1000,520 1040,490 1080,458 1140,470 1210,520 1120,540 1030,560" fill="#D4CAB3" />
-              <polygon points="1210,520 1270,590 1310,670 1330,770 1250,770 1220,660 1150,600" fill="#A99D83" />
-              {Array.from({length: 10}, (_, i) => (
-                <line key={i} x1={1196 + i * 12} y1={600 + i * 15} x2={1222 + i * 12} y2={572 + i * 15} stroke={INK} strokeWidth={2} opacity={0.32} />
-              ))}
-              <path d="M 1030 560 L 1120 540 L 1210 520 M 1120 540 L 1150 600 L 1220 660 L 1250 770 M 1150 600 L 1060 660 L 1040 770" stroke={INK} strokeWidth={2.5} opacity={0.4} fill="none" strokeLinejoin="round" />
-              <path d="M 1100 480 L 1118 498 M 1176 500 L 1190 518 M 1268 640 L 1286 630" stroke={INK} strokeWidth={3} opacity={0.5} strokeLinecap="round" />
-              <path d="M 1146 784 L 1172 726 L 1230 712 L 1286 730 L 1304 784 Z" fill="#B3A78D" stroke={INK} strokeWidth={4} strokeLinejoin="round" />
-              <path d="M 1172 726 L 1230 712 L 1286 730 L 1226 738 Z" fill="#CCC1A9" />
-              {DV_SHARDS.slice(2).map((d, i) => (
-                <g key={i} transform={`translate(${d.x} ${d.y}) rotate(${d.tilt})`}>
-                  <polygon points={`0,${-d.h} ${-d.h * 0.3},${-d.h * 0.62} ${-d.h * 0.26},0 ${d.h * 0.26},0 ${d.h * 0.3},${-d.h * 0.62}`} fill="#D9452E" stroke={INK} strokeWidth={3} strokeLinejoin="round" />
-                  <polygon points={`0,${-d.h} ${d.h * 0.3},${-d.h * 0.62} ${d.h * 0.26},0 0,0`} fill="#A8261A" />
-                </g>
-              ))}
-              {[1060, 1320, 1350].map((x, i) => (
-                <path key={i} d={`M ${x} 774 L ${x - 6} 754 M ${x + 4} 774 L ${x + 6} 750 M ${x + 8} 774 L ${x + 16} 758`} stroke={INK} strokeWidth={2.5} opacity={0.6} strokeLinecap="round" />
-              ))}
-              <ellipse cx={1380} cy={778} rx={18} ry={10} fill="#D4C9B0" stroke={INK} strokeWidth={2} />
-              <ellipse cx={1024} cy={792} rx={11} ry={6} fill="#D4C9B0" stroke={INK} strokeWidth={2} />
+          ))}
+          {barP > 0 ? (
+            <g>
+              <line x1={JP_POSTS[0]} y1={barY} x2={JP_POSTS[0] + (JP_POSTS[1] - JP_POSTS[0]) * barP} y2={barY} stroke={CINNABAR} strokeWidth={9} strokeLinecap="round" />
+              <circle cx={JP_POSTS[0]} cy={barY} r={9} fill={INK} />
+              {barP >= 1 ? <circle cx={JP_POSTS[1]} cy={barY} r={9} fill={INK} /> : null}
             </g>
-            {/* Red glow from inside the crack. */}
-            {split <= 0 ? (
-              <g opacity={crackGlow}>
-                <path d={DV_CRACK} fill="none" stroke={CINNABAR} strokeWidth={22} opacity={0.14} strokeLinecap="round" strokeLinejoin="round" />
-                <path d={DV_CRACK} fill="none" stroke={CINNABAR} strokeWidth={9} opacity={0.32} strokeLinecap="round" strokeLinejoin="round" />
-              </g>
-            ) : null}
-            {split <= 0 ? <path d={DV_CRACK} fill="none" stroke={INK} strokeWidth={3} opacity={0.8} strokeLinejoin="round" /> : null}
-            {/* Tiny nicks from the iron strikes: the rock barely cracks. */}
-            {split <= 0
-              ? [0, 1, 2].map((k) =>
-                  k < nicks ? (
-                    <g key={k} transform={`translate(${DV_HIT.x - 8 + k * 10} ${DV_HIT.y + 6 + k * 8})`}>
-                      <path d={`M 0 0 L ${8 + k * 3} ${10 + k * 2} L ${4 + k * 2} ${20 + k * 4}`} stroke={INK} strokeWidth={2.5} fill="none" opacity={0.75} />
-                      <path d="M 22 -8 L 34 -14 M 24 4 L 38 4" stroke={INK} strokeWidth={2.5} opacity={0.6} strokeLinecap="round" />
-                    </g>
-                  ) : null,
-                )
-              : null}
-          </g>
-        ) : null}
-        {/* The crystals' paper tag on a string. */}
-        {silOn ? null : tag}
-        {/* The person stands up into frame and holds the crystal aloft. */}
-        {silOn ? (
-          <g>
-            <g transform={`translate(${DV_SIL.x} ${feetY}) scale(${DV_SIL.s})`}>
-              <circle cx={0} cy={-84} r={13} fill={INK} />
-              <path d={DV_BODY} fill={INK} />
-              {[-1, 1].map((side) => (
-                <line key={side} x1={side * 18} y1={-62} x2={side * 24} y2={-130} stroke={INK} strokeWidth={8} strokeLinecap="round" />
-              ))}
-            </g>
-            {crystal}
-            <g transform={`translate(${DV_SIL.x} ${feetY}) scale(${DV_SIL.s})`}>
-              {[-1, 1].map((side) => (
-                <circle key={side} cx={side * 24} cy={-131} r={6.5} fill={INK} />
-              ))}
-            </g>
-            {tag}
-          </g>
-        ) : null}
-        <rect x={-300} y={-300} width={2520} height={1680} fill="url(#dvVignette)" />
-      </svg>
-      {/* Step 2: Cinnabar arrives with AI skills on a small cart. */}
-      {frame >= s2 + 4 ? (
-        <div style={{position: "absolute", left: 0, top: 0, transform: `translate(${entryX}px, 0px)`}}>
-          <svg width={1} height={1} style={{position: "absolute", left: 0, top: 0, overflow: "visible"}}>
-            {burstT > 0 && burstT < 1 ? (
-              <g opacity={1 - burstT}>
-                <circle cx={DV_CARD.x} cy={DV_CARD.y} r={70 + 220 * burstT} fill="none" stroke="#E7B94C" strokeWidth={9} />
-                {Array.from({length: 10}, (_, i) => {
-                  const a = (i / 10) * Math.PI * 2;
-                  return (
-                    <line
-                      key={i}
-                      x1={DV_CARD.x + (160 + 80 * burstT) * Math.cos(a)}
-                      y1={DV_CARD.y + (160 + 80 * burstT) * Math.sin(a)}
-                      x2={DV_CARD.x + (200 + 120 * burstT) * Math.cos(a)}
-                      y2={DV_CARD.y + (200 + 120 * burstT) * Math.sin(a)}
-                      stroke={i % 2 === 0 ? CINNABAR : "#E7B94C"}
-                      strokeWidth={8}
-                      strokeLinecap="round"
-                    />
-                  );
-                })}
-              </g>
-            ) : null}
-            <line x1={1850} y1={620} x2={1850} y2={120} stroke={INK} strokeWidth={8} strokeLinecap="round" />
-            <circle cx={1850} cy={114} r={11} fill={INK} />
-            <rect x={1590} y={560} width={280} height={66} fill="#E9DFC8" stroke={INK} strokeWidth={4} />
-            {[0, 1, 2].map((i) => (
-              <line key={i} x1={1590} y1={580 + i * 16} x2={1870} y2={580 + i * 16} stroke={INK} strokeWidth={1.5} opacity={0.3} />
-            ))}
-            {[1650, 1810].map((wx) => (
-              <g key={wx} transform={`translate(${wx} 648) rotate(${(-entryX / 24) * (180 / Math.PI)})`}>
-                <circle r={24} fill={CARD} stroke={INK} strokeWidth={5} />
-                <line x1={-20} y1={0} x2={20} y2={0} stroke={INK} strokeWidth={3} />
-                <line x1={0} y1={-20} x2={0} y2={20} stroke={INK} strokeWidth={3} />
-              </g>
-            ))}
-          </svg>
-          <div
-            style={{
-              position: "absolute",
-              left: DV_PLATE.x,
-              top: DV_PLATE.y,
-              width: 300,
-              height: 88,
-              padding: 6,
-              boxSizing: "border-box",
-              borderRadius: 6,
-              background: FOIL,
-              boxShadow: "0 12px 20px rgba(26,26,26,0.22), 0 0 0 1px rgba(26,26,26,0.45)",
-              transform: "translate(-50%, -50%) rotate(-3deg)",
-            }}
-          >
+          ) : null}
+          {/* Players, back lane first. */}
+          {states.map(({p, st}, i) => (
+            <JpFigure key={i} state={st} frame={frame} cup={p.cup} />
+          ))}
+          {/* AI skills arrival burst. */}
+          {burstT > 0 && burstT < 1 ? <ellipse cx={JP_CARD.x} cy={JP_CARD.y} rx={150 + 220 * burstT} ry={190 + 220 * burstT} fill="none" stroke="#E7B94C" strokeWidth={10 * (1 - burstT) + 1} opacity={1 - burstT} /> : null}
+        </svg>
+        {/* 'Threshold' tag hangs under the bar and follows it. */}
+        {labelP > 0.02 && barP > 0.5 ? (
+          <div style={{position: "absolute", left: 1260, top: barY, transform: "translate(-50%, 0)", opacity: Math.min(1, labelP * 2)}}>
+            <div style={{position: "absolute", left: 38, top: 4, width: 2, height: 22, background: INK}} />
+            <div style={{position: "absolute", right: 38, top: 4, width: 2, height: 22, background: INK}} />
             <div
               style={{
-                width: "100%",
-                height: "100%",
-                borderRadius: 3,
-                background: "linear-gradient(160deg, #FFFCF3, #F2E9D3)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontFamily: SERIF,
+                marginTop: 24,
+                padding: "5px 14px 4px",
+                background: CARD,
+                border: `2.5px solid ${INK}`,
+                fontFamily: MONO,
                 fontWeight: 700,
-                fontSize: 40,
-                letterSpacing: "0.08em",
+                fontSize: 24,
+                letterSpacing: "0.1em",
                 color: INK,
+                transform: `rotate(${-2 * (1 - Math.min(1, labelP))}deg) scale(${interpolate(labelP, [0, 1], [1.5, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"})})`,
+                whiteSpace: "nowrap",
               }}
             >
-              <span style={{marginRight: "-0.08em"}}>CINNABAR</span>
+              Threshold
             </div>
           </div>
-          <div
-            style={{
-              position: "absolute",
-              left: DV_CARD.x,
-              top: DV_CARD.y,
-              width: 210,
-              height: 270,
-              boxSizing: "border-box",
-              transform: "translate(-50%, -50%) rotate(3deg)",
-              background: "linear-gradient(170deg, #FFFDF5, #F6EBCF)",
-              border: `3px solid ${INK}`,
-              borderRadius: 6,
-              boxShadow: `0 0 ${30 + 40 * cardGlow}px rgba(231,185,76,${0.5 * Math.min(1.4, cardGlow)}), 0 0 ${10 + 16 * cardGlow}px rgba(217,56,30,${0.3 * Math.min(1.4, cardGlow)})`,
-              padding: "24px 16px",
-              textAlign: "center",
-            }}
-          >
-            <div style={{fontFamily: SERIF, fontWeight: 700, fontSize: 40, color: INK, letterSpacing: "-0.02em"}}>AI skills</div>
-            <svg width={64} height={64} viewBox="-30 -30 60 60" style={{display: "block", margin: "16px auto 8px"}}>
-              <path d="M 0 -24 L 6 -6 L 24 0 L 6 6 L 0 24 L -6 6 L -24 0 L -6 -6 Z" fill="#E7B94C" stroke={INK} strokeWidth={2} strokeLinejoin="round" />
-              <circle r={4} fill={CINNABAR} />
-            </svg>
-            {[130, 160, 110].map((w, i) => (
-              <div key={i} style={{margin: "10px auto 0", width: w, height: 7, borderRadius: 4, background: INK, opacity: 0.25}} />
-            ))}
+        ) : null}
+        {/* 'non-coders' tags ride above two of the runners. */}
+        {states.map(({p, st}, i) => {
+          if (!p.tag) {
+            return null;
+          }
+          const g = jpGeom(st.pose);
+          const sc = JP_S * (1 - 0.18 * st.d);
+          const hipY = JP_GROUND - 34 * st.d - st.h * sc;
+          return (
+            <div
+              key={i}
+              style={{
+                position: "absolute",
+                left: st.x + g.hd.x * sc * st.dir,
+                top: hipY + g.hd.y * sc - 36,
+                transform: "translate(-50%, -100%) rotate(-3deg)",
+                padding: "3px 10px 2px",
+                background: CARD,
+                border: `2px solid ${INK}`,
+                fontFamily: MONO,
+                fontWeight: 700,
+                fontSize: 20,
+                letterSpacing: "0.06em",
+                color: INK,
+                whiteSpace: "nowrap",
+              }}
+            >
+              non-coders
+            </div>
+          );
+        })}
+        {/* Cinnabar plate and the AI skills card, arriving from the right in step 3. */}
+        {frame >= s3 + 4 ? (
+          <>
+            <div
+              style={{
+                position: "absolute",
+                left: JP_PLATE.x + entryX,
+                top: JP_PLATE.y,
+                width: 300,
+                height: 88,
+                padding: 6,
+                boxSizing: "border-box",
+                borderRadius: 6,
+                background: FOIL,
+                boxShadow: "0 12px 20px rgba(26,26,26,0.22), 0 0 0 1px rgba(26,26,26,0.45)",
+                transform: "translate(-50%, -50%) rotate(-3deg)",
+              }}
+            >
+              <div
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  borderRadius: 3,
+                  background: "linear-gradient(160deg, #FFFCF3, #F2E9D3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontFamily: SERIF,
+                  fontWeight: 700,
+                  fontSize: 40,
+                  letterSpacing: "0.08em",
+                  color: INK,
+                }}
+              >
+                <span style={{marginRight: "-0.08em"}}>CINNABAR</span>
+              </div>
+            </div>
+            <div
+              style={{
+                position: "absolute",
+                left: JP_CARD.x + entryX,
+                top: JP_CARD.y,
+                width: 210,
+                height: 270,
+                boxSizing: "border-box",
+                transform: "translate(-50%, -50%) rotate(3deg)",
+                background: "linear-gradient(170deg, #FFFDF5, #F6EBCF)",
+                border: `3px solid ${INK}`,
+                borderRadius: 6,
+                boxShadow: `0 0 ${30 + 40 * cardGlow}px rgba(231,185,76,${0.5 * Math.min(1.4, cardGlow)}), 0 0 ${10 + 16 * cardGlow}px rgba(217,56,30,${0.3 * Math.min(1.4, cardGlow)})`,
+                padding: "24px 16px",
+                textAlign: "center",
+              }}
+            >
+              <div style={{fontFamily: SERIF, fontWeight: 700, fontSize: 40, color: INK, letterSpacing: "-0.02em"}}>AI skills</div>
+              <svg width={64} height={64} viewBox="-30 -30 60 60" style={{display: "block", margin: "16px auto 8px"}}>
+                <path d="M 0 -24 L 6 -6 L 24 0 L 6 6 L 0 24 L -6 6 L -24 0 L -6 -6 Z" fill="#E7B94C" stroke={INK} strokeWidth={2} strokeLinejoin="round" />
+                <circle r={4} fill={CINNABAR} />
+              </svg>
+              {[130, 160, 110].map((w, i) => (
+                <div key={i} style={{margin: "10px auto 0", width: w, height: 7, borderRadius: 4, background: INK, opacity: 0.25}} />
+              ))}
+            </div>
+          </>
+        ) : null}
+      </div>
+      {frame >= s2 + 60 && note1Out.opacity > 0 ? (
+        <div style={cssDrift(note1Out, JP_NOTE.x, JP_NOTE.y)}>
+          <div style={cssDrift(exit, 960, 540)}>
+            <BigNote x={JP_NOTE.x} y={JP_NOTE.y} width={560} tilt={-2} p={note1P} size={58}>
+              Almost no one can jump over it.
+            </BigNote>
           </div>
         </div>
       ) : null}
-      <svg width={1920} height={1080} style={{position: "absolute", left: 0, top: 0, overflow: "visible"}}>
-        {hits.map((h) => spark(h, DV_HIT, false))}
-        {spark(goldHit, DV_HIT2, true)}
-        {/* Magic circle and particles (step 3). */}
-        {circleDraw > 0 && magicFade > 0 ? (
-          <g opacity={magicFade}>
-            <g transform={`translate(${head.x} ${head.y}) rotate(${(frame - s3) * 2})`}>
-              <circle r={150} fill="none" stroke="#D9A93A" strokeWidth={7} pathLength={1} strokeDasharray={1} strokeDashoffset={1 - circleDraw} />
-              <circle r={124} fill="none" stroke={CINNABAR} strokeWidth={3} strokeDasharray="12 9" opacity={circleDraw} />
-              {Array.from({length: 24}, (_, i) => {
-                const a = (i / 24) * Math.PI * 2;
-                const r1 = i % 3 === 0 ? 146 : 140;
-                return <line key={i} x1={130 * Math.cos(a)} y1={130 * Math.sin(a)} x2={r1 * Math.cos(a)} y2={r1 * Math.sin(a)} stroke={INK} strokeWidth={3} opacity={circleDraw} strokeLinecap="round" />;
-              })}
-            </g>
-            <g transform={`translate(${head.x} ${head.y}) rotate(${-(frame - s3) * 3})`} opacity={circleDraw * 0.8}>
-              {[0, 1].map((t) => (
-                <polygon
-                  key={t}
-                  points={[0, 1, 2]
-                    .map((j) => {
-                      const a = ((j * 120 + t * 60 - 90) * Math.PI) / 180;
-                      return `${110 * Math.cos(a)},${110 * Math.sin(a)}`;
-                    })
-                    .join(" ")}
-                  fill="none"
-                  stroke="#D9A93A"
-                  strokeWidth={2.5}
-                />
-              ))}
-            </g>
-          </g>
-        ) : null}
-        {castOn > 0
-          ? [0, 1, 2].flatMap((st) =>
-              Array.from({length: 8}, (_, i) => {
-                const u = ((((frame - (s3 + 10)) / 40 + i / 8 + st / 3) % 1) + 1) % 1;
-                const e = u * u * (3 - 2 * u);
-                const a = 6 * Math.PI * u + st * 2.1;
-                const r = 70 * Math.sin(Math.PI * u);
-                const x = DV_CARD.x + (head.x - DV_CARD.x) * e + r * Math.cos(a);
-                const y = DV_CARD.y + (head.y - DV_CARD.y) * e + r * Math.sin(a) * 0.7 - 110 * Math.sin(Math.PI * e);
-                return (
-                  <g key={`${st}-${i}`} opacity={castOn * Math.sin(Math.PI * u)}>
-                    <circle cx={x} cy={y} r={20} fill="#FBE7A6" opacity={0.35} />
-                    <circle cx={x} cy={y} r={i % 2 === 0 ? 9 : 6} fill={st === 1 ? CINNABAR : "#E7B94C"} />
-                  </g>
-                );
-              }),
-            )
-          : null}
-        {halo > 0 ? (
-          <g opacity={halo}>
-            <circle cx={head.x} cy={head.y} r={180} fill="url(#dvWarm)" opacity={0.7 + 0.3 * haloPulse} />
-            <circle cx={head.x} cy={head.y} r={150 + 8 * haloPulse} fill="none" stroke="#E7B94C" strokeWidth={7} opacity={0.8} />
-          </g>
-        ) : null}
-        {/* First-person hands and the digger. */}
-        {handsOn ? (
-          <g>
-            <g transform={`translate(${hx} ${hy}) rotate(${phi}) scale(${hs})`}>
-              {digger(false)}
-              {goldP > 0 ? <g clipPath="url(#dvGoldClip)">{digger(true)}</g> : null}
-              {goldP > 0 && goldP < 1 ? <line x1={-60 + 470 * goldP} y1={goldP > 0.75 ? -220 : -30} x2={-60 + 470 * goldP} y2={goldP > 0.75 ? 200 : 30} stroke="#FFFBEA" strokeWidth={14} strokeLinecap="round" opacity={0.9} /> : null}
-            </g>
-            {arm(1780, {x: hx, y: hy}, "r")}
-            {arm(1300, fist2, "l")}
-          </g>
-        ) : null}
-        {flashT > 0 && flashT < 1 ? (
-          <g opacity={1 - flashT}>
-            <circle cx={head.x} cy={head.y} r={40 + 220 * flashT} fill="#FFF6D2" opacity={0.85} />
-            {Array.from({length: 12}, (_, i) => {
-              const a = (i / 12) * Math.PI * 2;
-              return (
-                <line
-                  key={i}
-                  x1={head.x + (70 + 130 * flashT) * Math.cos(a)}
-                  y1={head.y + (70 + 130 * flashT) * Math.sin(a)}
-                  x2={head.x + (120 + 170 * flashT) * Math.cos(a)}
-                  y2={head.y + (120 + 170 * flashT) * Math.sin(a)}
-                  stroke="#E7B94C"
-                  strokeWidth={8}
-                  strokeLinecap="round"
-                />
-              );
-            })}
-          </g>
-        ) : null}
-        {/* Golden strike: shockwave, rubble flying at the viewer, a flash. */}
-        {shockT > 0 && shockT < 1 ? <circle cx={DV_HIT2.x} cy={DV_HIT2.y} r={60 + 1300 * shockT} fill="none" stroke="#E7B94C" strokeWidth={30 * (1 - shockT) + 2} opacity={1 - shockT} /> : null}
-        {frame >= goldHit + 2 && frame < goldHit + 28
-          ? DV_DEBRIS.map((d, i) => {
-              const t = frame - (goldHit + 2);
-              const sc = 0.5 + t * 0.13;
-              return (
-                <polygon
-                  key={i}
-                  points={`${-d.size},${d.size * 0.6} 0,${-d.size} ${d.size},${d.size * 0.4}`}
-                  transform={`translate(${DV_HIT2.x + d.v * t * Math.cos(d.a)} ${DV_HIT2.y + d.v * t * Math.sin(d.a) + 0.6 * t * t}) rotate(${d.spin * t}) scale(${sc})`}
-                  fill={i % 3 === 0 ? "#A89C84" : "#CFC5B0"}
-                  stroke={INK}
-                  strokeWidth={2}
-                  opacity={1 - linear(frame, goldHit + 16, goldHit + 28, 0, 1)}
-                />
-              );
-            })
-          : null}
-        {flash > 0 ? <rect x={-300} y={-300} width={2520} height={1680} fill="#FFF6D8" opacity={flash} /> : null}
-        {frame >= s4 + 104 ? (
-          <g
-            transform={`translate(${DV_TICK.x} ${DV_TICK.y}) scale(${interpolate(tickP, [0, 1], [1.9, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"})}) rotate(-6)`}
-            opacity={Math.min(1, Math.max(0, tickP * 3))}
-          >
-            <path d="M -46 2 L -12 38 L 52 -44" fill="none" stroke={CINNABAR} strokeWidth={20} strokeLinecap="round" strokeLinejoin="round" />
-          </g>
-        ) : null}
-      </svg>
-      {frame >= s1 + 110 && noteOut.opacity > 0 ? (
-        <div style={cssDrift(noteOut, DV_NOTE.x, DV_NOTE.y)}>
-          <QuietNote x={DV_NOTE.x} y={DV_NOTE.y} width={520} tilt={-1.5} p={noteP}>
-            No code, no way to dig.
-          </QuietNote>
+      {frame >= s4 + 70 ? (
+        <div style={cssDrift(exit, 960, 540)}>
+          <BigNote x={JP_NOTE.x + 40} y={JP_NOTE.y} width={600} tilt={2} p={note2P} size={58}>
+            Even non-coders can jump it.
+          </BigNote>
         </div>
-      ) : null}
-      {frame >= s4 + 114 ? (
-        <BigNote x={DV_STICKY.x} y={DV_STICKY.y} width={480} tilt={3} p={stickyP} size={58}>
-          Anyone can build.
-        </BigNote>
       ) : null}
     </AbsoluteFill>
   );
@@ -4195,84 +3919,6 @@ const Closing: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
           <br />
           the bad out.
         </BigNote>
-      ) : null}
-    </div>
-  );
-};
-
-/** Beat 17: "Thank you." over a big 朱砂 stamp. The camera glides down to a clean stretch of desk; world = screen + (2340, 10060). */
-const th = (x: number, y: number) => ({x: x + 2340, y: y + 10060});
-const Thanks: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
-  const at = beatStart(16);
-  if (frame < at) {
-    return null;
-  }
-  const s1 = stepStart(16, 1);
-  const c = th(960, 500);
-  const p = slam(frame, fps, s1, 6);
-  const thump = s1 + 9;
-  const shock = linear(frame, thump, thump + 18, 0, 1);
-  const glow = linear(frame, thump, thump + 8, 0, 1) * (1 - linear(frame, thump + 8, thump + 70, 0, 1));
-  const SIZE = 720;
-  return (
-    <div style={{position: "absolute", left: 0, top: 0}}>
-      {frame >= s1 + 6 ? (
-        <>
-          <div
-            style={{
-              position: "absolute",
-              left: c.x,
-              top: c.y,
-              width: 1500,
-              height: 1000,
-              transform: "translate(-50%, -50%)",
-              background: "radial-gradient(ellipse at center, rgba(217,56,30,0.3) 0%, rgba(217,56,30,0.12) 40%, rgba(217,56,30,0) 70%)",
-              opacity: glow,
-            }}
-          />
-          {shock > 0 && shock < 1 ? (
-            <svg width={1} height={1} style={{position: "absolute", left: 0, top: 0, overflow: "visible"}}>
-              <g opacity={1 - shock} strokeWidth={8} strokeLinecap="round">
-                {Array.from({length: 20}, (_, k) => {
-                  const a = (k * 360 * Math.PI) / (20 * 180) + 0.1;
-                  const rx0 = 560 + 50 * shock;
-                  const ry0 = 410 + 20 * shock;
-                  const rx1 = rx0 + 34;
-                  const ry1 = ry0 + 24;
-                  return <line key={k} x1={c.x + rx0 * Math.cos(a)} y1={c.y + ry0 * Math.sin(a)} x2={c.x + rx1 * Math.cos(a)} y2={c.y + ry1 * Math.sin(a)} stroke={k % 2 === 0 ? CINNABAR : INK} />;
-                })}
-              </g>
-            </svg>
-          ) : null}
-          <div
-            style={{
-              position: "absolute",
-              left: c.x,
-              top: c.y,
-              width: SIZE,
-              height: SIZE,
-              boxSizing: "border-box",
-              border: `38px solid ${CINNABAR}`,
-              boxShadow: `inset 0 0 0 10px rgba(247,246,241,0.0), inset 0 0 0 14px ${CINNABAR}`,
-              background: "rgba(217,56,30,0.05)",
-              color: CINNABAR,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: CJK,
-              fontWeight: 700,
-              fontSize: 308,
-              lineHeight: 0.98,
-              mixBlendMode: "multiply",
-              transform: `translate(-50%, -50%) rotate(-5deg) scale(${interpolate(p, [0, 1], [1.5, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"})})`,
-              opacity: Math.min(0.85, Math.max(0, p * 3)),
-            }}
-          >
-            <span>朱</span>
-            <span>砂</span>
-          </div>
-        </>
       ) : null}
     </div>
   );
@@ -6133,6 +5779,35 @@ const Overlay: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
             }}
           >
             {copy.title}
+            {beat === 16 ? (
+              <span
+                style={{
+                  verticalAlign: "-0.03em",
+                  marginLeft: "0.1em",
+                  width: 112,
+                  height: 112,
+                  boxSizing: "border-box",
+                  border: `6px solid ${CINNABAR}`,
+                  outline: `2px solid ${CINNABAR}`,
+                  outlineOffset: 4,
+                  color: CINNABAR,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontFamily: CJK,
+                  fontWeight: 700,
+                  fontSize: 44,
+                  lineHeight: 1,
+                  letterSpacing: "0.02em",
+                  writingMode: "vertical-rl",
+                  textShadow: "none",
+                  transform: "rotate(-6deg)",
+                  mixBlendMode: "multiply",
+                }}
+              >
+                朱砂
+              </span>
+            ) : null}
           </div>
         ) : null}
         {beat === 0 ? (
