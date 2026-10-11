@@ -84,8 +84,7 @@ export const STEP_CAMERAS: Partial<Record<number, Cam[]>> = {
   ],
   9: [
     CAMERAS[9], // Whole quiet circle, no headline yet
-    CAMERAS[9], // Headline appears, same view
-    {x: 2260, y: 3460, scale: 1.4}, // Close-up on Build, room on its right for the Cinnabar card
+    {x: 2260, y: 3460, scale: 1.4}, // Close-up on Build (headline reveals during this push), room on its right for the Cinnabar card
     {x: 2260, y: 3460, scale: 1.4},
   ],
 };

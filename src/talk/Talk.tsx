@@ -5,7 +5,6 @@ import {
   Sequence,
   interpolate,
   interpolateColors,
-  spring,
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
@@ -638,74 +637,222 @@ const Patterns: React.FC = () => {
   );
 };
 
-const TitleNote: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
+/**
+ * Title page click 3, the "why it exists" sticky: a ballistic pop out of the case, then a bouncing landing. Everything is a closed form of the frame.
+ * Timeline, in frames after the click: 0-10 the case squeezes (anticipation), 10 launch, 10-50 flight, 50 impact, two decaying hops, then rest.
+ */
+const TN = {
+  anticipate: 10,
+  flight: 40,
+  hop1: 14,
+  hop2: 8,
+  mouth: { x: 1100, y: 452 },
+  land: { x: 1572, y: 862 },
+  apexY: 230,
+  boxH: 190,
+};
+
+/** Damped spring impulse starting at t0 with amplitude a: zero before t0, starts at zero, swings both ways. */
+const impulse = (
+  t: number,
+  t0: number,
+  a: number,
+  k: number,
+  w: number,
+): number =>
+  t >= t0 ? a * Math.exp(-(t - t0) / k) * Math.sin(w * (t - t0)) : 0;
+
+/** The case file's reaction to the sticky: squeeze, recoil + wobble at launch, then a jiggle at each landing impact. All terms are 0 at rest. */
+const casePose = (
+  frame: number,
+): { dy: number; rot: number; sx: number; sy: number; dip: number } => {
+  const t = frame - stepStart(0, 3);
+  if (t < 0 || t >= 100) {
+    return { dy: 0, rot: 0, sx: 1, sy: 1, dip: 0 };
+  }
+  const tau = t - TN.anticipate;
+  // q: 0 -> 1 while squeezing, then releases as a spring that overshoots (negative) and settles.
+  const q =
+    t < TN.anticipate
+      ? Easing.inOut(Easing.quad)(t / TN.anticipate)
+      : Math.exp(-tau / 5) * Math.cos(0.7 * tau);
+  const land = TN.anticipate + TN.flight;
+  const times = [land, land + TN.hop1, land + TN.hop1 + TN.hop2];
+  const amp = [14, 6, 3];
+  const rot = [1.8, 0.7, 0.3];
+  let dy = 9 * q;
+  let r = tau >= 0 ? 1.3 * Math.exp(-tau / 9) * Math.sin(0.45 * tau) : 0;
+  times.forEach((t0, i) => {
+    dy += impulse(t, t0, amp[i], 6, 0.55);
+    r += impulse(t, t0, rot[i], 8, 0.5);
+  });
+  return { dy, rot: r, sx: 1 + 0.012 * q, sy: 1 - 0.035 * q, dip: 14 * q };
+};
+
+const TitleNote: React.FC<{ frame: number; fps: number }> = ({ frame }) => {
   const idleF = useIdle();
   const start = stepStart(0, 3);
   if (frame < start) {
     return null;
   }
-  const pop = spring({
-    frame: frame - start,
-    fps,
-    config: {damping: 8, stiffness: 180, mass: 0.42},
-  });
-  const fall = interpolate(frame, [start + 18, start + 36], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.in(Easing.cubic),
-  });
-  const mouthX = 1100;
-  const landX = 1380;
-  const mouthY = 470;
-  const outY = 300;
-  const landY = 850;
-  const x = mouthX + (landX - mouthX) * fall;
-  const y = mouthY + (outY - mouthY) * pop + (landY - outY) * fall;
-  const scale = 0.1 + 0.08 * Math.min(1, Math.max(0, pop)) + 0.82 * fall;
-  const tilt = -7 + 4 * fall + 1.8 * fall * Math.sin((2 * Math.PI * idleF) / 110);
+  const t = frame - start;
+  const tau = t - TN.anticipate;
+  const T = TN.flight;
+  const land = TN.anticipate + T;
+  const { mouth, land: spot } = TN;
+  // Ballistic arc: constant horizontal speed, vertical y = y0 + v*u + g*u^2/2 with the apex at apexY and touchdown at the landing spot.
+  const rise = mouth.y - TN.apexY;
+  const a = (T * T) / (4 * rise);
+  const v = (T + Math.sqrt(T * T + 4 * a * (spot.y - mouth.y))) / (2 * a);
+  const g = (v * v) / (2 * rise);
+  const u = Math.min(1, Math.max(0, tau / T));
+  const flying = tau >= 0 && tau < T;
+  const air = tau >= 0 ? Math.min(tau, T) : 0;
+  const x = mouth.x + (spot.x - mouth.x) * u;
+  const arcY = mouth.y - v * air + 0.5 * g * air * air;
+  const groundY = mouth.y + (spot.y - mouth.y) * u;
+  // After touchdown: two decaying hops, each a parabola, with a squash at every contact.
+  const t2 = t - land;
+  const hop = (tt: number, d: number, h: number): number =>
+    tt >= 0 && tt < d ? 4 * h * (tt / d) * (1 - tt / d) : 0;
+  const hopUp = hop(t2, TN.hop1, 42) + hop(t2 - TN.hop1, TN.hop2, 13);
+  const y = (tau < 0 ? mouth.y : arcY) - hopUp;
+  const height = Math.max(0, groundY - y);
+  // Grows as it rises toward the viewer, a little extra at the apex, exactly 1 on touchdown.
+  const scale =
+    tau < 0
+      ? 0.1
+      : 0.1 +
+        0.9 * Math.pow(u, 0.85) +
+        0.3 * Math.sin(Math.PI * u) * (flying ? 1 : 0);
+  // Tumble that damps to the settled tilt (-3), plus paper flutter (a rocking rotateX and a little skew) while airborne.
+  const tumble = tau >= 0 ? 30 * Math.sin(2 * Math.PI * 1.15 * u) * (1 - u) : 0;
+  const settle = Math.min(1, Math.max(0, t2 / 6));
+  const done = t2 >= 50;
+  const wobble = done
+    ? 0
+    : impulse(t2, 0, 5, 9, 0.5) +
+      impulse(t2, TN.hop1, 2.2, 8, 0.5) +
+      impulse(t2, TN.hop1 + TN.hop2, 1, 8, 0.5);
+  const tilt =
+    -7 +
+    4 * u +
+    tumble +
+    wobble +
+    1.8 * settle * Math.sin((2 * Math.PI * idleF) / 110);
+  const flutter = flying ? 16 * Math.sin(tau * 0.85) * (1 - 0.5 * u) : 0;
+  const skew = flying ? 3 * Math.sin(tau * 0.6 + 1) : 0;
+  // Squash at every contact, held on the bottom edge.
+  const squash = done
+    ? 0
+    : [0, TN.hop1, TN.hop1 + TN.hop2].reduce((sum, t0, i) => {
+        const e = t2 - t0;
+        return e >= 0
+          ? sum + [0.2, 0.09, 0.04][i] * Math.exp(-e / 4.5) * Math.cos(0.9 * e)
+          : sum;
+      }, 0);
+  const sy = 1 - squash;
+  const sx = 1 + 0.5 * squash;
+  const bottomFix = TN.boxH * scale * (1 - sy);
+  const opacityIn = tau < 0 ? 0 : Math.min(1, tau / 3);
   // Leaves as the camera starts toward beat 2, so its edge never shows there.
   const tuck = linear(frame, beatStart(1), beatStart(1) + 10, 1, 0);
   if (tuck <= 0) {
     return null;
   }
+  const shadowH = Math.min(1, height / 220);
+  const sparkT = tau >= 0 && tau < 16 ? tau / 16 : -1;
   return (
-    <div
-      style={{
-        position: "absolute",
-        left: x,
-        top: y,
-        opacity: tuck,
-        width: 440,
-        minHeight: 190,
-        padding: "56px 30px 30px",
-        boxSizing: "border-box",
-        background: STICKY,
-        color: INK,
-        fontFamily: '"Marker Felt", "Chalkboard SE", "Bradley Hand", "Comic Neue", ui-sans-serif, system-ui, sans-serif',
-        fontWeight: 800,
-        fontSize: 54,
-        lineHeight: 1.05,
-        letterSpacing: "-0.01em",
-        boxShadow: "0 22px 36px rgba(26,26,26,0.2)",
-        transform: `translate(-50%, -50%) scale(${scale}) rotate(${tilt}deg)`,
-        transformOrigin: "50% 0%",
-        zIndex: 3,
-      }}
-    >
+    <>
+      {sparkT >= 0 ? (
+        <svg
+          width={1}
+          height={1}
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            overflow: "visible",
+            opacity: tuck,
+          }}
+        >
+          {[-150, -125, -100, -80, -55, -30].map((deg, i) => {
+            const rad = (deg * Math.PI) / 180;
+            const r0 = 30 + 80 * sparkT * (0.8 + 0.1 * (i % 3));
+            const len = 30 * (1 - sparkT) + 4;
+            return (
+              <line
+                key={deg}
+                x1={mouth.x + (r0 - len) * Math.cos(rad) * 1.4}
+                y1={TN.mouth.y - 8 + (r0 - len) * Math.sin(rad)}
+                x2={mouth.x + r0 * Math.cos(rad) * 1.4}
+                y2={TN.mouth.y - 8 + r0 * Math.sin(rad)}
+                stroke={i % 2 === 0 ? CINNABAR : INK}
+                strokeWidth={5}
+                strokeLinecap="round"
+                opacity={1 - sparkT}
+              />
+            );
+          })}
+        </svg>
+      ) : null}
+      {tau >= 0 && shadowH > 0.02 ? (
+        <div
+          style={{
+            position: "absolute",
+            left: x,
+            top: groundY - TN.boxH / 2 + TN.boxH * scale + 2,
+            width: 400 * scale,
+            height: 34 * (0.6 + 0.4 * scale),
+            borderRadius: "50%",
+            background: "rgba(26,26,26,0.45)",
+            filter: `blur(${5 + 14 * shadowH}px)`,
+            opacity:
+              tuck * 0.5 * Math.min(1, shadowH * 3) * (1 - 0.5 * shadowH),
+            transform: "translate(-50%, -50%)",
+            zIndex: 2,
+          }}
+        />
+      ) : null}
       <div
         style={{
           position: "absolute",
-          top: -14,
-          left: "50%",
-          width: 128,
-          height: 30,
-          marginLeft: -64,
-          background: "rgba(255,255,255,0.6)",
-          transform: "rotate(-2deg)",
+          left: x,
+          top: y + bottomFix,
+          opacity: tuck * opacityIn,
+          width: 440,
+          minHeight: 190,
+          padding: "56px 30px 30px",
+          boxSizing: "border-box",
+          background: STICKY,
+          color: INK,
+          fontFamily:
+            '"Marker Felt", "Chalkboard SE", "Bradley Hand", "Comic Neue", ui-sans-serif, system-ui, sans-serif',
+          fontWeight: 800,
+          fontSize: 54,
+          lineHeight: 1.05,
+          letterSpacing: "-0.01em",
+          boxShadow: `0 ${22 * Math.min(1, 0.3 + shadowH + settle)}px 36px rgba(26,26,26,0.2)`,
+          transform: `translate(-50%, -50%) ${flying ? `perspective(1100px) rotateX(${flutter}deg) skewX(${skew}deg) ` : ""}scale(${scale * sx}, ${scale * sy}) rotate(${tilt}deg)`,
+          transformOrigin: "50% 0%",
+          zIndex: 3,
         }}
-      />
-      why it exists
-    </div>
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: -14,
+            left: "50%",
+            width: 128,
+            height: 30,
+            marginLeft: -64,
+            background: "rgba(255,255,255,0.6)",
+            transform: "rotate(-2deg)",
+          }}
+        />
+        why it exists
+      </div>
+    </>
   );
 };
 
@@ -723,6 +870,21 @@ const OpeningFile: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
     extrapolateRight: "clamp",
   });
   const label = enter(frame, fps, at0, 14);
+  const pose = casePose(frame);
+  // The label plate stamps on with an overshoot, one foil sweep follows, then a faint sweep every 150 idle frames (none at idle 0).
+  const idleF = useIdle();
+  const stampP = slam(frame, fps, at0, 14);
+  const entrySweep = linear(frame, at0 + 34, at0 + 62, 0, 1);
+  const idleT = idleF - 45;
+  const idlePhase = idleT >= 0 ? idleT % 150 : 999;
+  const shinePos =
+    entrySweep > 0 && entrySweep < 1
+      ? entrySweep
+      : idlePhase < 30
+        ? idlePhase / 30
+        : 0;
+  const shineAlpha =
+    entrySweep > 0 && entrySweep < 1 ? 1 : idlePhase < 30 ? 0.5 : 0;
   return (
     <div
       style={{
@@ -731,7 +893,7 @@ const OpeningFile: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
         top: 680,
         width: 740,
         height: 470,
-        transform: `translate(-50%, -50%) translateX(${slide}px)`,
+        transform: `translate(-50%, -50%) translateX(${slide}px)${pose.dip === 0 && pose.dy === 0 && pose.rot === 0 ? "" : ` translateY(${pose.dy}px) rotate(${pose.rot}deg) scale(${pose.sx}, ${pose.sy})`}`,
         opacity: Math.min(1, Math.max(0, p * 2)),
       }}
     >
@@ -749,7 +911,7 @@ const OpeningFile: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
           fontSize: 15,
           letterSpacing: "0.22em",
           color: INK,
-          transform: `perspective(600px) rotateX(${angle}deg)`,
+          transform: `perspective(600px) rotateX(${angle + pose.dip}deg)`,
           transformOrigin: "bottom left",
         }}
       >
@@ -780,35 +942,77 @@ const OpeningFile: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
         <div
           style={{
             position: "absolute",
-            left: 56,
-            top: 74,
-            padding: "16px 26px 14px",
-            background: CARD,
-            border: `2px solid ${INK}`,
-            opacity: Math.min(1, Math.max(0, label)),
-            transform: `translateY(${(1 - Math.min(1, label)) * 12}px)`,
+            left: "50%",
+            top: "50%",
+            padding: "24px 44px 22px",
+            background: CINNABAR,
+            border: `3px solid ${INK}`,
+            boxShadow:
+              "0 12px 24px rgba(26,26,26,0.26), inset 0 -4px 0 rgba(0,0,0,0.14)",
+            overflow: "hidden",
+            opacity: Math.min(1, Math.max(0, stampP * 3)),
+            transform: `translate(-50%, -50%) rotate(-1.2deg) scale(${interpolate(
+              stampP,
+              [0, 1],
+              [1.45, 1],
+              {
+                extrapolateLeft: "clamp",
+                extrapolateRight: "extend",
+              },
+            )})`,
           }}
         >
           <div
             style={{
-              fontFamily: MONO,
-              fontWeight: 700,
-              fontSize: 64,
-              letterSpacing: "0.14em",
+              position: "absolute",
+              left: 7,
+              right: 7,
+              top: 7,
+              bottom: 7,
+              border: `1.5px solid ${CARD}`,
+              opacity: 0.85,
+            }}
+          />
+          <div
+            style={{
+              position: "relative",
+              fontFamily: SERIF,
+              fontWeight: 800,
+              fontSize: 78,
+              letterSpacing: "0.2em",
               lineHeight: 1,
-              color: INK,
+              color: CARD,
+              marginRight: "-0.2em",
+              textShadow: "0 2px 0 rgba(90,16,6,0.45)",
             }}
           >
             CINNABAR
           </div>
+          {shineAlpha > 0 ? (
+            <div
+              style={{
+                position: "absolute",
+                top: -20,
+                bottom: -20,
+                left: -140 + shinePos * 900,
+                width: 110,
+                transform: "skewX(-22deg)",
+                background:
+                  "linear-gradient(90deg, rgba(255,244,210,0), rgba(255,244,210,0.8), rgba(255,244,210,0))",
+                opacity: shineAlpha,
+              }}
+            />
+          ) : null}
         </div>
         <div
           style={{
             position: "absolute",
-            left: 60,
-            top: 222,
+            left: 0,
+            right: 0,
+            top: 330,
+            textAlign: "center",
             fontFamily: MONO,
-            fontSize: 20,
+            fontSize: 22,
             letterSpacing: "0.06em",
             color: INK,
             opacity: Math.min(1, Math.max(0, label)) * 0.85,
@@ -816,17 +1020,6 @@ const OpeningFile: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
         >
           CKB script programming tool
         </div>
-        <div
-          style={{
-            position: "absolute",
-            left: 60,
-            right: 60,
-            top: 262,
-            height: 1,
-            background: INK,
-            opacity: 0.25,
-          }}
-        />
       </div>
     </div>
   );
@@ -1011,7 +1204,7 @@ const RgbArrival: React.FC<{frame: number}> = ({frame}) => {
 const CircleCards: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   const at = beatStart(3);
   // Beat 10 step 1: Build turns red and stays red into beat 11; the other cards fade to faint ink.
-  const red = linear(frame, stepStart(9, 2) + 6, stepStart(9, 2) + 20, 0, 1);
+  const red = linear(frame, stepStart(9, 1) + 6, stepStart(9, 1) + 20, 0, 1);
   const dim = buildFocus(frame);
   const cards = [
     {n: "01", label: "Discover", at: CIRCLE.discover, delay: 40, rot: -2},
@@ -1322,7 +1515,7 @@ const JourneyNotes: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
 
 /** Beat 10 step 1 on: Discover, Learn, Success and the arcs fade to faint ink while Build is lit. Restores off-screen after the beat 11 glide. */
 const buildFocus = (frame: number): number =>
-  eased(frame, stepStart(9, 2), stepStart(9, 2) + 14) *
+  eased(frame, stepStart(9, 1), stepStart(9, 1) + 14) *
   (1 - linear(frame, beatStart(10) + 40, beatStart(10) + 52, 0, 1));
 
 const GAP_SEAL = {x: 2620, y: 3300};
@@ -1337,8 +1530,8 @@ const GLINT = "M 0 -16 L 3 -3 L 16 0 L 3 3 L 0 16 L -3 3 L -16 0 L -3 -3 Z";
 const FLOURISH = "M 0 30 C 0 13 13 0 30 0 M 9 24 C 11 16 16 11 24 9";
 
 /** Beat 10 step 2 landing: a short desk shake when the Cinnabar seal card slams down. */
-const gapShake = (frame: number): {x: number; y: number} => {
-  const t = frame - (stepStart(9, 3) + 10);
+const gapShake = (frame: number): { x: number; y: number } => {
+  const t = frame - (stepStart(9, 2) + 10);
   if (t < 0 || t > 10) {
     return {x: 0, y: 0};
   }
@@ -1349,8 +1542,8 @@ const gapShake = (frame: number): {x: number; y: number} => {
 /** Beat 10 steps 1-2 (world): red loop on Build with a gentle breathe, then a premium Cinnabar seal card and a thick arrow from it to Build. */
 const GapBuild: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   const idleF = useIdle();
-  const s1 = stepStart(9, 2);
-  const s2 = stepStart(9, 3);
+  const s1 = stepStart(9, 1);
+  const s2 = stepStart(9, 2);
   const next = beatStart(10);
   if (frame < s1 || frame >= next + 34) {
     return null;
@@ -2125,7 +2318,9 @@ const CALC_FIGURE = {x: 2890, y: 6470};
 /** Bridge: one flat ink deck from the contract's right edge to the assembler's left edge, on two plain posts. n = frames the deck takes to draw. */
 const BR = {a: 575, b: 2435, deck: 6330, n: 46};
 const BR_Y = BR.deck + 11;
-const BR_POSTS = [1000, 2000];
+const BR_POSTS = [1100, 1900];
+/** The missing span of the deck. Symmetric about CALC_MID so the right end is a mirror of the left. */
+const BR_GAP = { l: 1280, r: 1720 };
 /** Step 6: hand-drawn loop (page 4/10 style, slightly over one turn) around the merged pair, and its Monorepo tag. */
 const MONO_LOOP_PTS = Array.from({length: 97}, (_, k) => {
   const t = (k / 96) * 1.08;
@@ -2265,8 +2460,16 @@ const TxAssemblers: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   const figX = CALC_FIGURE.x + 260 * walk;
   // Step 3: the bridge builds plank by plank, then piers, towers, cables, measure, tag.
   const built = linear(frame, s3 + 4, s3 + 4 + BR.n, 0, 1);
-  const railEnd = BR.a + (BR.b - BR.a) * built;
-  const posts = interpolate(frame, [s3 + 4 + BR.n, s3 + 4 + BR.n + 12], [0, 1], {...clamp, easing: Easing.out(Easing.cubic)});
+  // Both deck halves grow from their outer ends toward each other and stop short, leaving the gap.
+  const leftEnd = BR.a + (BR_GAP.l - BR.a) * built;
+  const rightStart = BR.b - (BR.b - BR_GAP.r) * built;
+  const ends = linear(frame, s3 + 4 + BR.n, s3 + 4 + BR.n + 14, 0, 1);
+  const posts = interpolate(
+    frame,
+    [s3 + 4 + BR.n, s3 + 4 + BR.n + 12],
+    [0, 1],
+    { ...clamp, easing: Easing.out(Easing.cubic) },
+  );
   const tagP = slam(frame, fps, s3 + 70, 0);
   const debris = fallAll >= 0 ? {dy: 0.9 * fallAll * fallAll, op: 1 - linear(fallAll, 0, 24, 0, 1)} : {dy: 0, op: 1};
   const burst = it >= 0 ? linear(frame, impactAt, impactAt + 16, 0, 1) : 0;
@@ -2293,57 +2496,51 @@ const TxAssemblers: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
                   stroke={INK}
                   strokeWidth={9}
                   strokeLinecap="round"
-                  opacity={debris.op}
+                  opacity={debris.op * Math.min(1, posts * 20)}
                   transform={`translate(0 ${debris.dy * 0.9}) rotate(${sway} ${x} ${BR_Y + 6})`}
                 />
               );
             })}
-            {/* The deck draws left to right; on impact it splits at the middle and both halves fall. */}
-            {[0, 1].map((side) => {
-              const x0 = side === 0 ? BR.a : CALC_MID;
-              const x1 = side === 0 ? CALC_MID : BR.b;
-              const end = Math.min(x1, Math.max(x0, railEnd));
-              if (end <= x0) {
-                return null;
-              }
-              const turn = it >= 0 ? (side === 0 ? 1 : -1) * 0.07 * it * it : 0;
-              const pivot = side === 0 ? BR.a : BR.b;
-              return (
-                <line
-                  key={side}
-                  x1={x0}
-                  y1={BR_Y}
-                  x2={end}
-                  y2={BR_Y}
-                  stroke={INK}
-                  strokeWidth={14}
-                  strokeLinecap="butt"
-                  opacity={debris.op}
-                  transform={`translate(0 ${debris.dy * 0.5}) rotate(${turn} ${pivot} ${BR_Y})`}
-                />
-              );
-            })}
-            {/* Minimal bridge life: railing, lamp posts, direction chevrons, walkers and cars, all heading Contract -> Tx Assembler. They ride the two deck halves down on impact. */}
+            {/* Static bridge with a missing span: two deck halves that stop short of each other, ragged ends, hanging rail ends, a dark void below.
+                Nothing here moves while it holds; on impact the halves tip into the void and fade. */}
             {(() => {
-              const reach = (x: number) => Math.min(1, Math.max(0, (railEnd - x) / 80));
+              const gl = BR_GAP.l;
+              const gr = BR_GAP.r;
               const half = (x: number) => (x < CALC_MID ? 0 : 1);
               const sideTf = (side: number) =>
                 `translate(0 ${debris.dy * 0.5}) rotate(${it >= 0 ? (side === 0 ? 1 : -1) * 0.07 * it * it : 0} ${side === 0 ? BR.a : BR.b} ${BR_Y})`;
               const top = BR_Y - 7;
               const railTop = top - 64;
+              const reach = (x: number) =>
+                half(x) === 0
+                  ? Math.min(1, Math.max(0, (leftEnd - x) / 80))
+                  : Math.min(1, Math.max(0, (x - rightStart) / 80));
               const baluster = (x: number) => (
                 <g key={`b${x}`} transform={sideTf(half(x))} opacity={debris.op * reach(x)}>
                   <line x1={x} y1={top} x2={x} y2={railTop} stroke={INK} strokeWidth={4} strokeLinecap="round" />
                 </g>
               );
-              const railSeg = (x0: number, x1: number, key: string) => {
-                const e = Math.min(x1, Math.max(x0, railEnd));
-                if (e <= x0) {
+              const railSeg = (side: number, x0: number, x1: number) => {
+                const a0 = side === 0 ? x0 : Math.max(x0, rightStart);
+                const a1 = side === 0 ? Math.min(x1, leftEnd) : x1;
+                if (a1 <= a0) {
                   return null;
                 }
                 return (
-                  <g key={key} transform={sideTf(half(x0))} opacity={debris.op}>
-                    <line x1={x0} y1={railTop} x2={e} y2={railTop} stroke={INK} strokeWidth={6} strokeLinecap="round" />
+                  <g
+                    key={`r${side}`}
+                    transform={sideTf(side)}
+                    opacity={debris.op}
+                  >
+                    <line
+                      x1={a0}
+                      y1={railTop}
+                      x2={a1}
+                      y2={railTop}
+                      stroke={INK}
+                      strokeWidth={6}
+                      strokeLinecap="round"
+                    />
                   </g>
                 );
               };
@@ -2357,22 +2554,123 @@ const TxAssemblers: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
                   </g>
                 </g>
               );
-              const chevrons = [700, 850, 1150, 1300, 1700, 1850, 2150, 2300];
-              const t0 = s3 + 4 + BR.n + 6;
-              const tc = Math.min(frame, impactAt) + idleF - t0;
-              const vis = linear(frame, t0, t0 + 14, 0, 1);
-              const lane = (T: number, phase: number) => {
-                const u = (((tc / T + phase) % 1) + 1) % 1;
-                return {x: BR.a + 70 + u * (BR.b - BR.a - 140), edge: Math.min(1, u * 10) * Math.min(1, (1 - u) * 10)};
-              };
-              const walkers = [lane(520, 0.15), lane(520, 0.62)];
-              const cars = [lane(190, 0.05), lane(190, 0.55)];
+              const chevrons = [700, 850, 1000, 1150, 1850, 2000, 2150, 2300];
+              // Broken end of the left half; the right half is its mirror about the gap's centre.
+              const brokenEnd = (side: number) => (
+                <g
+                  key={`e${side}`}
+                  transform={sideTf(side)}
+                  opacity={debris.op * ends}
+                >
+                  <g
+                    transform={
+                      side === 0
+                        ? undefined
+                        : `translate(${2 * CALC_MID} 0) scale(-1 1)`
+                    }
+                  >
+                    <path
+                      d={`M ${gl - 44} ${top} L ${gl + 2} ${top} L ${gl - 10} ${BR_Y + 8} L ${gl + 18} ${BR_Y + 18} L ${gl - 8} ${BR_Y + 34} L ${gl - 14} ${BR_Y + 74} L ${gl - 38} ${BR_Y + 30} L ${gl - 56} ${BR_Y + 10} Z`}
+                      fill={INK}
+                    />
+                    <path
+                      d={`M ${gl + 2} ${BR_Y - 3} L ${gl + 38} ${BR_Y - 17}`}
+                      stroke={INK}
+                      strokeWidth={4}
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d={`M ${gl + 8} ${BR_Y + 6} L ${gl + 34} ${BR_Y + 22}`}
+                      stroke={INK}
+                      strokeWidth={4}
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d={`M ${gl - 34} ${railTop} Q ${gl - 14} ${railTop + 2} ${gl - 8} ${railTop + 70}`}
+                      fill="none"
+                      stroke={INK}
+                      strokeWidth={6}
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d={`M ${gl - 8} ${railTop + 70} L ${gl - 2} ${railTop + 100}`}
+                      fill="none"
+                      stroke={INK}
+                      strokeWidth={4}
+                      strokeLinecap="round"
+                    />
+                  </g>
+                </g>
+              );
+              const gate = it >= 0 ? Math.max(0, 1 - it / 6) : 1;
               return (
                 <>
-                  {[BR.a + 36, ...[1, 2, 3, 4, 5, 6, 7].map((k) => BR.a + 36 + k * 70)].filter((x) => x < 1140).map(baluster)}
-                  {[1880, 1950, 2020, 2090, 2160, 2230, 2300, 2370].map(baluster)}
-                  {railSeg(BR.a + 36, 1130, "rl")}
-                  {railSeg(1880, BR.b - 30, "rr")}
+                  <defs>
+                    <linearGradient id="brVoid" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stopColor={INK} stopOpacity={0.92} />
+                      <stop offset="0.55" stopColor={INK} stopOpacity={0.5} />
+                      <stop offset="1" stopColor={INK} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  {ends > 0 ? (
+                    <g opacity={debris.op * ends}>
+                      <path
+                        d={`M ${gl + 6} ${BR_Y + 9} L ${gr - 6} ${BR_Y + 9} L ${gr - 36} ${BR_Y + 110} L ${gr - 14} ${BR_Y + 190} L ${CALC_MID + 70} ${BR_Y + 330} L ${CALC_MID - 30} ${BR_Y + 300} L ${gl + 18} ${BR_Y + 200} L ${gl + 44} ${BR_Y + 100} Z`}
+                        fill="url(#brVoid)"
+                      />
+                      <rect
+                        x={gl + 22}
+                        y={top}
+                        width={gr - gl - 44}
+                        height={14}
+                        fill="none"
+                        stroke={INK}
+                        strokeWidth={3}
+                        strokeDasharray="12 10"
+                        opacity={0.45 * gate}
+                      />
+                      <line
+                        x1={gl + 40}
+                        y1={railTop}
+                        x2={gr - 40}
+                        y2={railTop}
+                        stroke={INK}
+                        strokeWidth={3}
+                        strokeDasharray="10 12"
+                        opacity={0.28 * gate}
+                      />
+                    </g>
+                  ) : null}
+                  {[0, 1].map((side) => {
+                    const x0 = side === 0 ? BR.a : rightStart;
+                    const x1 = side === 0 ? leftEnd : BR.b;
+                    if (x1 <= x0) {
+                      return null;
+                    }
+                    return (
+                      <line
+                        key={`deck${side}`}
+                        x1={x0}
+                        y1={BR_Y}
+                        x2={x1}
+                        y2={BR_Y}
+                        stroke={INK}
+                        strokeWidth={14}
+                        strokeLinecap="butt"
+                        opacity={debris.op}
+                        transform={sideTf(side)}
+                      />
+                    );
+                  })}
+                  {ends > 0 ? [0, 1].map(brokenEnd) : null}
+                  {Array.from({ length: 10 }, (_, k) => BR.a + 36 + k * 70).map(
+                    baluster,
+                  )}
+                  {Array.from({ length: 10 }, (_, k) => BR.b - 36 - k * 70).map(
+                    baluster,
+                  )}
+                  {railSeg(0, BR.a + 36, gl - 34)}
+                  {railSeg(1, gr + 34, BR.b - 36)}
                   {lamp(800, 1)}
                   {lamp(2200, -1)}
                   {chevrons.map((x) => (
@@ -2380,52 +2678,9 @@ const TxAssemblers: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
                       <path d={`M ${x - 12} ${BR_Y + 28} L ${x + 8} ${BR_Y + 40} L ${x - 12} ${BR_Y + 52}`} fill="none" stroke={INK} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" />
                     </g>
                   ))}
-                  {vis > 0
-                    ? walkers.map((w, i) => {
-                        const sw = Math.sin((tc + i * 9) * 0.42);
-                        return (
-                          <g key={`w${i}`} transform={sideTf(half(w.x))} opacity={debris.op * vis * w.edge}>
-                            <g transform={`translate(${w.x} ${top}) scale(${1.5 - 0.15 * i})`}>
-                              <circle cx={0} cy={-62} r={8} fill={INK} />
-                              <path d="M -10 -50 L 10 -50 L 8 -22 L -8 -22 Z" fill={INK} />
-                              <line x1={-3} y1={-22} x2={-3 - 9 * sw} y2={0} stroke={INK} strokeWidth={5} strokeLinecap="round" />
-                              <line x1={3} y1={-22} x2={3 + 9 * sw} y2={0} stroke={INK} strokeWidth={5} strokeLinecap="round" />
-                              <line x1={0} y1={-46} x2={10 + 5 * sw} y2={-30} stroke={INK} strokeWidth={4} strokeLinecap="round" />
-                            </g>
-                          </g>
-                        );
-                      })
-                    : null}
-                  {vis > 0
-                    ? cars.map((c, i) => (
-                        <g key={`car${i}`} transform={sideTf(half(c.x))} opacity={debris.op * vis * c.edge}>
-                          <g transform={`translate(${c.x} ${top - 12}) scale(${1.6 - 0.2 * i})`}>
-                            <path d="M -56 0 L -56 -16 Q -56 -22 -48 -22 L -34 -22 L -22 -44 L 22 -44 L 36 -22 L 50 -22 Q 56 -22 56 -16 L 56 0 Z" fill={INK} />
-                            <path d="M -17 -26 L -9 -39 L 0 -39 L 0 -26 Z M 6 -26 L 6 -39 L 18 -39 L 28 -26 Z" fill={PAPER} />
-                            {[-30, 30].map((wx) => (
-                              <g key={wx}>
-                                <circle cx={wx} cy={0} r={12} fill={INK} />
-                                <circle cx={wx} cy={0} r={4.5} fill={PAPER} />
-                              </g>
-                            ))}
-                          </g>
-                        </g>
-                      ))
-                    : null}
                 </>
               );
             })()}
-            {it >= 0 && it < 18 ? (
-              <path
-                d={`M ${CALC_MID - 10} ${BR.deck - 50} L ${CALC_MID + 14} ${BR.deck - 20} L ${CALC_MID - 8} ${BR.deck} L ${CALC_MID + 12} ${BR.deck + 34}`}
-                fill="none"
-                stroke={CINNABAR}
-                strokeWidth={8}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity={1 - it / 18}
-              />
-            ) : null}
           </g>
         </svg>
       ) : null}
@@ -2434,19 +2689,50 @@ const TxAssemblers: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
           style={{
             position: "absolute",
             left: CALC_MID + shake,
-            top: BR_Y + 7 + (it >= 0 ? 1.2 * it * it : 0),
+            top: BR_Y - 190 + (it >= 0 ? 1.2 * it * it : 0),
             width: 0,
             height: 0,
-            transform: `rotate(${(it >= 0 ? it * 9 : 0) + 3 * Math.sin((frame + idleF - s3) / 9)}deg)`,
+            transform: `rotate(${it >= 0 ? it * 9 : 0}deg)`,
             opacity: it >= 0 ? debris.op : 1,
           }}
         >
-          <div style={{position: "absolute", left: -1, top: 0, width: 2, height: 40, background: INK}} />
+          <svg
+            width={1}
+            height={1}
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              overflow: "visible",
+            }}
+          >
+            <g opacity={linear(frame, s3 + 80, s3 + 84, 0, 1)}>
+              <path
+                d="M 0 40 L 0 176"
+                fill="none"
+                stroke={CINNABAR}
+                strokeWidth={9}
+                strokeLinecap="round"
+                pathLength={1}
+                strokeDasharray={1}
+                strokeDashoffset={1 - linear(frame, s3 + 80, s3 + 98, 0, 1)}
+              />
+              <path
+                d="M -24 146 L 0 180 L 24 146"
+                fill="none"
+                stroke={CINNABAR}
+                strokeWidth={9}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity={linear(frame, s3 + 94, s3 + 100, 0, 1)}
+              />
+            </g>
+          </svg>
           <div
             style={{
               position: "absolute",
               left: -80,
-              top: 40,
+              top: -35,
               width: 160,
               height: 70,
               boxSizing: "border-box",
@@ -2460,8 +2746,8 @@ const TxAssemblers: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
               fontWeight: 800,
               fontSize: 46,
               letterSpacing: "0.16em",
-              transform: `scale(${interpolate(tagP, [0, 1], [1.7, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"})}) rotate(-4deg)`,
-              transformOrigin: "50% 0%",
+              transform: `scale(${interpolate(tagP, [0, 1], [1.7, 1], { extrapolateLeft: "clamp", extrapolateRight: "extend" })}) rotate(-4deg)`,
+              transformOrigin: "50% 100%",
               opacity: Math.min(1, Math.max(0, tagP * 3)),
               boxShadow: "0 8px 14px rgba(26,26,26,0.15)",
             }}
@@ -6351,7 +6637,20 @@ const Overlay: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   const tool = linear(frame, beatStart(10), beatStart(10) + 10, 0, 1);
   // Beat 4 waits for beat 3's top headline to fade before its own lands in the same area.
   // Beat 5 waits until the Success card has left the lower-left headline area during the glide.
-  const titleP = reveal(frame, fps, beat === 9 ? stepStart(9, 1) : beatStart(beat), beat === 9 ? 2 : beat === 3 ? 20 : beat === 17 ? 34 : beat >= 4 && beat <= 16 ? 26 : 2);
+  const titleP = reveal(
+    frame,
+    fps,
+    beat === 9 ? stepStart(9, 1) : beatStart(beat),
+    beat === 9
+      ? 6
+      : beat === 3
+        ? 20
+        : beat === 17
+          ? 34
+          : beat >= 4 && beat <= 16
+            ? 26
+            : 2,
+  );
   // Beat 9 delays its subline with its headline so neither crosses the circle mid-glide.
   const subP = reveal(frame, fps, beatStart(beat), beat === 8 || beat === 10 ? 38 : 14);
   // Title page: the sentence arrives on click 2, then a red-pen highlight sweeps 'AI-friendly' and an underline is drawn.

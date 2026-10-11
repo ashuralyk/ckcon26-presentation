@@ -8,7 +8,7 @@ export const BEAT_FRAMES = 90;
  * A beat with one entry behaves like the old one-click beat.
  */
 export const STEPS: number[][] = [
-  [24, 70, 90, 70], // 1  Title: empty desk, then the case file drops in, then the one-line sentence + red-pen highlight, then the "why it exists" note springs out
+  [24, 70, 90, 120], // 1  Title: empty desk, then the case file drops in, then the one-line sentence + red-pen highlight, then the "why it exists" note springs out
   [90, 70, 80], // 2  After RGB++: headline, curve + bull sticky, crowd + discovered sticky
   [90, 160, 100], // 3  But people go away: close-up + headline, crowd leaves (accelerating), because we were not ready
   [170, 75, 75, 75, 85, 80], // 4  Developer Journey Circle: headline + circle draws, Discover, Learn, Build, Success notes, pull back to all four
@@ -17,7 +17,7 @@ export const STEPS: number[][] = [
   [90, 160, 80], // 7  Success: zoom on Success + headline, road + flag + chasm, crowd stuck at the edge, few across; sticky + break
   [90, 110, 70, 70, 90, 110, 130], // 8  Whole circle, red loops + "The problem lies on them.", DOCs sticky, SDKs sticky, "But in AI era", AI-friendly rewrite, "But" + Learn < Build
   [90, 90, 150, 100], // 9  Most developers build with AI: headline, AI heart lands + beats, developers + vessels + pulses, catch-up poster
-  [90, 80, 80, 100], // 10 The gap is build: circle glides in alone, headline appears on click 1, Build lights red + loop (others dim), gap sticky + onward arrow
+  [90, 80, 100], // 10 The gap is build: circle glides in with no headline; click 1 closes up on Build with the red loop and reveals the headline; click 2 gap sticky + onward arrow
   [90, 70, 70, 70, 80], // 11 Cinnabar: crate tagged CINNABAR, then one feature pops out per click (four)
   [90, 60, 70, 130, 80, 150, 90], // 12 Contracts own their Tx Assemblers: seed card -> headline, contract + note, assembler + note, long GAP bridge, sticker, Cinnabar smashes the bridge + merge, close-up + Monorepo sticker
   [100, 215, 170, 130, 250], // 13 AI skills for non-coders (high jump): 02 card -> headline, stage + failed jumps, another try and giving up + sticky, AI skills arrives and the bar sinks, a stream of jumpers clears it + sticky
