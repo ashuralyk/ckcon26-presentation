@@ -1,5 +1,5 @@
 import {Player, type PlayerRef} from "@remotion/player";
-import React, {useEffect, useRef, useState} from "react";
+import React, {useEffect, useMemo, useRef, useState} from "react";
 import {createRoot} from "react-dom/client";
 import {Talk} from "../talk/Talk";
 import {FPS, STOPS, TOTAL_FRAMES} from "../talk/timing";
@@ -33,6 +33,24 @@ const Presenter: React.FC = () => {
   const [stop, setStop] = useState(0);
   // True once the current step has played to its hold frame and the talk is waiting for the next click.
   const [waiting, setWaiting] = useState(false);
+  // Idle clock: frames since the step settled. Drives the composition's idle loops (reset to 0 on every navigation).
+  const [idle, setIdle] = useState(0);
+  const inputProps = useMemo(() => ({idle}), [idle]);
+  useEffect(() => {
+    if (!waiting) {
+      return;
+    }
+    const t0 = performance.now();
+    let raf = 0;
+    const tick = () => {
+      setIdle(Math.floor(((performance.now() - t0) * FPS) / 1000));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+    };
+  }, [waiting]);
   const wheelRef = useRef({lastEvent: 0, lockUntil: 0});
   const [full, setFull] = useState(false);
   const [size, setSize] = useState(fit);
@@ -113,6 +131,7 @@ const Presenter: React.FC = () => {
     stopRef.current += 1;
     modeRef.current = "play";
     setWaiting(false);
+    setIdle(0);
     setStop(stopRef.current);
   };
 
@@ -125,6 +144,7 @@ const Presenter: React.FC = () => {
     stopRef.current -= 1;
     modeRef.current = "settle";
     setWaiting(false);
+    setIdle(0);
     setStop(stopRef.current);
   };
 
@@ -224,6 +244,7 @@ const Presenter: React.FC = () => {
         <Player
           ref={playerRef}
           component={Talk}
+          inputProps={inputProps}
           durationInFrames={TOTAL_FRAMES}
           compositionWidth={1920}
           compositionHeight={1080}

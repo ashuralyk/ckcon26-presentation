@@ -40,7 +40,9 @@ export const CAMERAS: Cam[] = [
   {x: 1520, y: 8000, scale: 0.86}, // Inclusive verification tree: root + branches around the lower centre
   {x: 3300, y: 8040, scale: 1}, // Beat 15: scaffold framework left of centre, room on the right for the FIRST stamp and the sticky
   {x: 3300, y: 9400, scale: 1}, // Beat 16: an empty stretch of desk below the page 15 framework; world = screen + (2340, 8860)
-  {x: 3300, y: 10600, scale: 1}, // Beat 17: clean desk below page 16; world = screen + (2340, 10060)
+  {x: 3300, y: 10600, scale: 1}, // Beat 17: Lowering the threshold of CKB. Clean desk below page 16; world = screen + (2340, 10060)
+  {x: 3300, y: 11800, scale: 1}, // Beat 18: How to use Cinnabar. Clean desk below page 17; world = screen + (2340, 11260)
+  {x: 3300, y: 13000, scale: 1}, // Beat 19: Thank you. Clean desk below page 18
 ];
 
 /**
@@ -111,10 +113,12 @@ export const COPY: BeatCopy[] = [
     titleSize: 108,
     sub: "An AI-friendly CKB script programming tool.",
   },
-  {title: "Contracts own their calculators", titleSize: 72},
+  {title: "Contracts own their Tx Assemblers", titleSize: 68},
   {title: "AI skills for non-coders", titleSize: 76},
   {title: "Inclusive verification tree", titleSize: 72},
   {title: "The first SSRI-integrated contract framework", titleSize: 58},
   {title: "The meaning of Cinnabar", titleSize: 76},
+  {title: "Lowering the threshold of CKB.", titleSize: 80},
+  {title: "How to use Cinnabar", titleSize: 84},
   {title: "Thank you.", titleSize: 260},
 ];
