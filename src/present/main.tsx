@@ -9,7 +9,91 @@ const WHEEL_QUIET_MS = 220;
 const WHEEL_LOCK_MS = 520;
 const WHEEL_MIN = 2;
 
-const HINT_CSS = `@keyframes nextHint { 0%, 100% { opacity: 0.22; transform: scale(0.85); } 50% { opacity: 0.4; transform: scale(1.15); } }`;
+const FLAG_CSS = `@keyframes flagReady { 0%, 100% { filter: drop-shadow(0 0 2px rgba(217,56,30,0.35)); transform: scale(1); } 50% { filter: drop-shadow(0 0 8px rgba(217,56,30,0.95)); transform: scale(1.04); } }
+@keyframes flagWave { 0%, 100% { transform: skewY(0deg) scaleX(1); } 50% { transform: skewY(-5deg) scaleX(0.94); } }`;
+
+const CINNABAR = "#D9381E";
+const INK = "#1A1A1A";
+/** Pole fills first (first third of the step), then the cloth rises from its hem to its top. */
+const POLE_SHARE = 0.35;
+
+/**
+ * Presenter chrome, outside the composition: a small pennant under the page number. While a step plays it fills from the bottom up with the
+ * step's progress (the player's current frame within the step); at the hold it is full and pulses in cinnabar: ready for the next click.
+ * Hidden on the very last step. It never takes pointer events, so wheel, keyboard and clicks are untouched.
+ */
+const StepFlag: React.FC<{
+  playerRef: React.RefObject<PlayerRef | null>;
+  stopRef: React.RefObject<number>;
+  stop: number;
+  waiting: boolean;
+  size: {w: number; h: number};
+}> = ({playerRef, stopRef, stop, waiting, size}) => {
+  const [prog, setProg] = useState<{stop: number; p: number}>({stop: 0, p: 0});
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player) {
+      return;
+    }
+    const onFrame = (event: {detail: {frame: number}}) => {
+      const cur = stopRef.current;
+      const {start, hold} = STOPS[cur];
+      const p = hold > start ? Math.min(1, Math.max(0, (event.detail.frame - start) / (hold - start))) : 1;
+      setProg((old) => (old.stop === cur && old.p === p ? old : {stop: cur, p}));
+    };
+    player.addEventListener("frameupdate", onFrame);
+    return () => {
+      player.removeEventListener("frameupdate", onFrame);
+    };
+  }, [playerRef, stopRef]);
+  // A stale value from the previous step reads as empty until this step's first frame arrives.
+  const p = waiting ? 1 : prog.stop === stop ? prog.p : 0;
+  const poleP = Math.min(1, p / POLE_SHARE);
+  const clothP = Math.min(1, Math.max(0, (p - POLE_SHARE) / (1 - POLE_SHARE)));
+  const ready = waiting;
+  const hgt = Math.max(16, size.h * 0.0259);
+  const clip = clothP > 0 ? 18 - 15 * clothP : 19;
+  return (
+    <div
+      aria-hidden
+      data-testid="step-flag"
+      data-progress={p.toFixed(3)}
+      data-ready={ready ? "1" : "0"}
+      style={{
+        position: "absolute",
+        right: size.w * 0.0349,
+        bottom: size.h * 0.0035,
+        width: hgt * 0.8125,
+        height: hgt,
+        pointerEvents: "none",
+        opacity: stop < STOPS.length - 1 ? 1 : 0,
+        // Presenter chrome, outside the composition: not part of the frame-pure art.
+        animation: ready ? "flagReady 2.2s ease-in-out infinite" : "none",
+        transformOrigin: "20% 100%",
+      }}
+    >
+      <svg viewBox="0 0 26 32" width="100%" height="100%" style={{display: "block", overflow: "visible"}}>
+        <defs>
+          <clipPath id="flagFill">
+            <rect x={0} y={clip} width={26} height={19 - clip + 0.01} />
+          </clipPath>
+        </defs>
+        <line x1={4} y1={31} x2={4} y2={1.5} stroke={INK} strokeWidth={2.2} strokeLinecap="round" opacity={0.55} />
+        {poleP > 0 ? <line x1={4} y1={31} x2={4} y2={31 - 29.5 * poleP} stroke={CINNABAR} strokeWidth={2.2} strokeLinecap="round" /> : null}
+        <g
+          style={{
+            transformOrigin: "4px 10px",
+            animation: ready ? "flagWave 1.6s ease-in-out infinite" : "none",
+          }}
+        >
+          <path d="M 4 3 L 24 3 L 18.5 10.5 L 24 18 L 4 18 Z" fill="rgba(26,26,26,0.06)" stroke={INK} strokeWidth={1.4} strokeLinejoin="round" opacity={ready ? 0 : 0.6} />
+          {clothP > 0 ? <path d="M 4 3 L 24 3 L 18.5 10.5 L 24 18 L 4 18 Z" fill={CINNABAR} clipPath="url(#flagFill)" /> : null}
+          <path d="M 4 3 L 24 3 L 18.5 10.5 L 24 18 L 4 18 Z" fill="none" stroke={ready ? CINNABAR : INK} strokeWidth={1.4} strokeLinejoin="round" opacity={ready ? 1 : 0.6} />
+        </g>
+      </svg>
+    </div>
+  );
+};
 
 const fit = (): {w: number; h: number} => {
   const maxW = window.innerWidth;
@@ -239,7 +323,7 @@ const Presenter: React.FC = () => {
         userSelect: "none",
       }}
     >
-      <style>{HINT_CSS}</style>
+      <style>{FLAG_CSS}</style>
       <div style={{width: size.w, height: size.h, position: "relative"}}>
         <Player
           ref={playerRef}
@@ -259,34 +343,7 @@ const Presenter: React.FC = () => {
           acknowledgeRemotionLicense
           style={{width: "100%", height: "100%", outline: "none"}}
         />
-        {/* "Waiting for the next click": outside the composition, under the page number, hidden on the very last step. */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            right: size.w * 0.0455,
-            bottom: size.h * 0.012,
-            width: size.w * 0.0052,
-            height: size.w * 0.0052,
-            borderRadius: "50%",
-            pointerEvents: "none",
-            opacity: waiting && stop < STOPS.length - 1 ? 1 : 0,
-            // Presenter chrome, outside the composition: the hint is not part of the frame-pure art.
-            // eslint-disable-next-line @remotion/non-pure-animation
-            transition: waiting ? "opacity 900ms ease 450ms" : "none",
-          }}
-        >
-          <div
-            style={{
-              width: "100%",
-              height: "100%",
-              borderRadius: "50%",
-              background: "#D9381E",
-              animation: waiting ? "nextHint 2.4s ease-in-out 1.4s infinite" : "none",
-              opacity: 0.3,
-            }}
-          />
-        </div>
+        <StepFlag playerRef={playerRef} stopRef={stopRef} stop={stop} waiting={waiting} size={size} />
       </div>
       <button
         type="button"

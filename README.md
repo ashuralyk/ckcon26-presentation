@@ -10,7 +10,7 @@ A click-through presenter for a ten-minute talk on CKB / Nervos, built with [Rem
 
 One wheel gesture moves one step. A trackpad's inertial tail is ignored, and a new gesture needs a short pause (about a quarter of a second). Horizontal scrolls and pinch-zoom are not treated as navigation.
 
-Once a step has finished playing and the talk is waiting for you, a faint red dot fades in under the page number. It disappears the moment you navigate, and it is not shown on the last step of the last page. It lives in the presenter chrome, outside the Remotion composition.
+A small pennant flag sits in the bottom-right corner, just under the page number. While a step plays (step 0 of a page includes the camera glide) its pole and then its cloth fill with cinnabar red from the bottom up, in proportion to how far the player is through that step. When the step reaches its hold the flag is full and pulses with a red glow: the talk is ready for the next click. It resets to empty the moment you navigate, and it is hidden on the last step of the last page. It lives in the presenter chrome (`src/present/main.tsx`), outside the Remotion composition, takes no pointer events, and does not affect wheel, keyboard or full-screen use.
 
 ## Run locally
 

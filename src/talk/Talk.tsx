@@ -4442,8 +4442,8 @@ const CinnabarLump: React.FC<{glow: number}> = ({glow}) => {
 const CL_CENTER = pw(900, 430);
 const CL_CARD_C = pw(900, 440);
 const CL_GHOSTS = [
-  {ang: 160, sx: -120, sy: 200},
-  {ang: 200, sx: -120, sy: 700},
+  {ang: 250, sx: 250, sy: 1250},
+  {ang: 205, sx: -120, sy: 760},
   {ang: 110, sx: 500, sy: -180},
   {ang: 70, sx: 1300, sy: -180},
   {ang: 20, sx: 2050, sy: 200},
@@ -4494,12 +4494,13 @@ const Closing: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   const s3 = stepStart(15, 3);
   const tSlam = (p: number, from = 1.35) => interpolate(p, [0, 1], [from, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"});
   const R = CL_CENTER;
-  // Step 1: the raw rock drops in; its seal is stamped; a small sticky.
+  // Step 1: the raw rock drops in and its seal is stamped.
   const dropP = slam(frame, fps, s1, 4);
   const sealP = slam(frame, fps, s1, 30);
   const dust = linear(frame, s1 + 8, s1 + 26, 0, 1);
-  const smallNoteP = slam(frame, fps, s1, 50);
-  const noteOut = deskDrift(frame, s2 + 2, {x: -1, y: -0.4});
+  // The reality sticky lands as click 2 starts, together with the ghosts, and slides off as click 3 begins.
+  const smallNoteP = slam(frame, fps, s2, 2);
+  const noteOut = deskDrift(frame, s3 + 2, {x: -1, y: -0.4});
   // Step 2: the rock glows red and pushes the ghosts back out.
   const glow = eased(frame, s2 + 28, s2 + 52) * (1 - 0.5 * eased(frame, s2 + 100, s2 + 128));
   const pulse = frame >= s2 + 52 ? 0.07 * Math.sin((frame + idleF - s2) / 5) * (1 - eased(frame, s2 + 100, s2 + 128)) : 0;
@@ -4711,7 +4712,7 @@ const Closing: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
         ) : null,
       )}
       {/* Stickies. */}
-      {frame >= s1 + 50 && frame < s2 + 40 ? (
+      {frame >= s2 && frame < s3 + 40 ? (
         <div style={cssDrift(noteOut, pw(300, 330).x, pw(300, 330).y)}>
           <BigNote x={pw(300, 330).x} y={pw(300, 330).y} width={440} tilt={-2} p={smallNoteP} size={40}>
             In reality,
@@ -4724,11 +4725,9 @@ const Closing: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
       ) : null}
       {frame >= s3 + 84 ? (
         <BigNote x={pw(1610, 450).x} y={pw(1610, 450).y} width={520} tilt={3} p={finalP} size={46}>
-          Cinnabar fills
+          Keep CKB out
           <br />
-          the gap, and keeps
-          <br />
-          the bad out.
+          of the bad things
         </BigNote>
       ) : null}
     </div>
@@ -6216,6 +6215,7 @@ const catchUpShake = (frame: number): {x: number; y: number} => {
 
 /** Beat 9 step 3 (screen): a huge taped poster slams on over a red sunburst, with speed lines and a running arrow. */
 const CatchUp: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
+  const idleF = useIdle();
   const s3 = stepStart(8, 3);
   const next = beatStart(9);
   if (frame < s3 || frame >= next + 24) {
@@ -6236,16 +6236,28 @@ const CatchUp: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   const sh = catchUpShake(frame);
   const grow = (v: number, from: number) =>
     interpolate(v, [0, 1], [from, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"});
+  // Idle loop (zero at idle 0, so the settled step-end frame is unchanged): the sunburst keeps turning, the speed lines keep streaming,
+  // the poster breathes with a red glow pulse, the arrow bobs, a shimmer sweeps the underline, and every 120 frames the poster thumps with a small shake.
+  const fi = frame + idleF;
+  const cycle = 0.5 - 0.5 * Math.cos((2 * Math.PI * idleF) / 72);
+  const thumpT = idleF - 60;
+  const thumpPh = thumpT >= 0 ? thumpT % 120 : -1;
+  const thump = thumpPh >= 0 ? Math.exp(-thumpPh / 7) : 0;
+  const thumpX = thumpPh >= 0 ? Math.sin(thumpPh * 2.9) * 7 * thump : 0;
+  const thumpY = thumpPh >= 0 ? Math.cos(thumpPh * 3.7) * 4 * thump : 0;
+  const bob = 9 * Math.sin((2 * Math.PI * idleF) / 36);
+  const shimT = idleF - 30;
+  const shimPh = shimT >= 0 ? (shimT % 96) / 40 : 9;
   const cx = 1000;
   const cy = 580;
   return (
     <AbsoluteFill style={{pointerEvents: "none", opacity: 1 - out}}>
       <AbsoluteFill style={{background: PAPER, opacity: 0.74 * wash}} />
-      <AbsoluteFill style={{transform: `translate(${sh.x - 500 * out}px, ${sh.y - 200 * out}px)`}}>
+      <AbsoluteFill style={{transform: `translate(${sh.x + thumpX - 500 * out}px, ${sh.y + thumpY - 200 * out}px)`}}>
         {frame >= at ? (
           <svg width={1920} height={1080} viewBox="0 0 1920 1080" style={{position: "absolute", left: 0, top: 0}}>
             <g
-              transform={`translate(${cx} ${cy}) scale(1 0.45) rotate(${(frame - at) * 0.25}) scale(${grow(rays, 0.2)})`}
+              transform={`translate(${cx} ${cy}) scale(1 0.45) rotate(${(fi - at) * 0.25}) scale(${grow(rays, 0.2) * (1 + 0.03 * thump)})`}
               opacity={Math.min(1, Math.max(0, rays * 3)) * 0.85}
             >
               {Array.from({length: 18}, (_, i) => {
@@ -6273,7 +6285,7 @@ const CatchUp: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
                     x2={x1 + 230 + ((k * 97) % 160)}
                     y2={y}
                     strokeDasharray="70 34"
-                    strokeDashoffset={(frame - at) * 16 + k * 23}
+                    strokeDashoffset={(fi - at) * 16 + k * 23}
                   />
                 );
               })}
@@ -6296,8 +6308,8 @@ const CatchUp: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
               fontSize: 128,
               lineHeight: 1.02,
               letterSpacing: "-0.01em",
-              boxShadow: "0 40px 70px rgba(26,26,26,0.28)",
-              transform: `translate(-50%, -50%) rotate(-4deg) scale(${grow(p, 2.1)})`,
+              boxShadow: `0 40px 70px rgba(26,26,26,0.28), 0 0 ${50 * Math.max(cycle, thump)}px rgba(217,56,30,${0.5 * Math.max(cycle, thump)})`,
+              transform: `translate(-50%, -50%) rotate(-4deg) scale(${grow(p, 2.1) * (1 + 0.014 * cycle + 0.025 * thump)})`,
               opacity: Math.min(1, Math.max(0, p * 3)),
             }}
           >
@@ -6332,6 +6344,17 @@ const CatchUp: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
                 }}
               >
                 <path d="M 8 34 C 180 18 420 26 620 20 C 780 15 900 22 992 12 L 990 32 C 880 40 760 36 600 42 C 400 48 200 44 12 52 Z" fill={CINNABAR} />
+                <clipPath id="cuUnderline">
+                  <path d="M 8 34 C 180 18 420 26 620 20 C 780 15 900 22 992 12 L 990 32 C 880 40 760 36 600 42 C 400 48 200 44 12 52 Z" />
+                </clipPath>
+                {shimPh < 1 ? (
+                  <polygon
+                    clipPath="url(#cuUnderline)"
+                    points={`${-150 + 1250 * shimPh},0 ${-40 + 1250 * shimPh},0 ${-70 + 1250 * shimPh},60 ${-180 + 1250 * shimPh},60`}
+                    fill="#FFE9D8"
+                    opacity={0.8 * Math.sin(Math.PI * shimPh)}
+                  />
+                ) : null}
               </svg>
               {frame >= at + 30 ? (
                 <svg
@@ -6344,7 +6367,7 @@ const CatchUp: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
                     top: "18%",
                     overflow: "visible",
                     transformOrigin: "0 50%",
-                    transform: `translateX(${(1 - Math.min(1, arrow)) * -60}px) scale(${grow(arrow, 0.3)})`,
+                    transform: `translateX(${(1 - Math.min(1, arrow)) * -60 + bob}px) scale(${grow(arrow, 0.3)})`,
                     opacity: Math.min(1, Math.max(0, arrow * 3)),
                   }}
                 >
