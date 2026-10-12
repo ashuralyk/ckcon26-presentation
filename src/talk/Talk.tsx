@@ -4481,6 +4481,72 @@ const ClGhost: React.FC<{frame: number; seed: number}> = ({frame, seed}) => {
   );
 };
 
+/** Page 16's closing note: a cool cobalt notecard (ruled lines, dog-eared corner, cobalt tape), set in serif, distinct from the yellow stickies. */
+const MetaphorCard: React.FC<{x: number; y: number; width: number; p: number; idle: number}> = ({x, y, width, p, idle}) => {
+  const ear = 52;
+  const sway = 0.7 * Math.sin((2 * Math.PI * idle) / 120);
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: x,
+        top: y,
+        width,
+        transform: `translate(-50%, -50%) translateY(${(1 - Math.min(1, p)) * -70}px) scale(${interpolate(p, [0, 1], [1.3, 1], {
+          extrapolateLeft: "clamp",
+          extrapolateRight: "extend",
+        })}) rotate(${2.5 + sway}deg)`,
+        opacity: Math.min(1, Math.max(0, p * 2.5)),
+        filter: "drop-shadow(0 18px 20px rgba(26,26,26,0.2))",
+      }}
+    >
+      <div
+        style={{
+          position: "relative",
+          boxSizing: "border-box",
+          padding: "62px 44px 40px 64px",
+          background: `repeating-linear-gradient(180deg, rgba(43,78,139,0) 0px, rgba(43,78,139,0) 61px, rgba(43,78,139,0.16) 61px, rgba(43,78,139,0.16) 63px), #E6EDF6`,
+          border: `2px solid ${COBALT}`,
+          clipPath: `polygon(0 0, calc(100% - ${ear}px) 0, 100% ${ear}px, 100% 100%, 0 100%)`,
+          fontFamily: SERIF,
+          fontSize: 48,
+          lineHeight: "63px",
+          color: INK,
+        }}
+      >
+        <div style={{position: "absolute", left: 44, top: 0, bottom: 0, width: 2, background: CINNABAR, opacity: 0.45}} />
+        <span style={{fontStyle: "italic", fontWeight: 700, color: COBALT}}>Metaphor:</span> <span style={{fontWeight: 600}}>Help CKB keep bad things out</span>
+      </div>
+      {/* The folded corner. */}
+      <div
+        style={{
+          position: "absolute",
+          right: 0,
+          top: 0,
+          width: ear,
+          height: ear,
+          background: "linear-gradient(225deg, #F3F2EC 0%, #F3F2EC 50%, #BFD0E6 50%, #D4E0F0 100%)",
+          borderLeft: `2px solid ${COBALT}`,
+          borderBottom: `2px solid ${COBALT}`,
+          boxSizing: "border-box",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          top: -16,
+          left: "50%",
+          width: 150,
+          height: 32,
+          marginLeft: -75,
+          background: "rgba(43,78,139,0.55)",
+          transform: "rotate(-3deg)",
+        }}
+      />
+    </div>
+  );
+};
+
 const Closing: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   const idleF = useIdle();
   const at = beatStart(15);
@@ -4509,7 +4575,8 @@ const Closing: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   const rockOut = 1 - linear(frame, s3 + 6, s3 + 22, 0, 1);
   const burst = linear(frame, s3 + 2, s3 + 24, 0, 1);
   const cardP = slam(frame, fps, s3, 14);
-  const finalP = slam(frame, fps, s3, 84);
+  // The metaphor card lands shortly after the CKB card, before the first ghost appears (ghosts start 44 frames in).
+  const finalP = slam(frame, fps, s3, 14);
   const wave0 = s3 + 30;
   const ph = frame >= wave0 ? ((frame + idleF - wave0) % CL_WAVE_T) / CL_WAVE_T : 0;
   const ghosts = CL_GHOSTS.map((gh, i) => {
@@ -4537,12 +4604,12 @@ const Closing: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
         rho = 1.87 + (base - 1.87) * Easing.inOut(Easing.cubic)((ph - 0.8) / 0.2);
       }
       const pushAmt = Math.min(1, Math.max(0, (rho - ref) / 0.35));
-      const a = eased(frame, s3 + 30 + i * 4, s3 + 66 + i * 4);
+      const a = eased(frame, s3 + 44 + i * 4, s3 + 80 + i * 4);
       const tx = CL_CARD_C.x + CL_CARD_RX * rho * g3.cs;
       const ty = CL_CARD_C.y - CL_CARD_RY * rho * g3.sn;
       x = g3.start.x + (tx - g3.start.x) * a;
       y = g3.start.y + (ty - g3.start.y) * a;
-      op = 0.85 * linear(frame, s3 + 30 + i * 4, s3 + 46 + i * 4, 0, 1) * (1 - 0.45 * pushAmt) * (1 - 0.2 * pushAmt * (0.5 + 0.5 * Math.sin((frame + idleF) * 1.9 + i)));
+      op = 0.85 * linear(frame, s3 + 44 + i * 4, s3 + 60 + i * 4, 0, 1) * (1 - 0.45 * pushAmt) * (1 - 0.2 * pushAmt * (0.5 + 0.5 * Math.sin((frame + idleF) * 1.9 + i)));
     }
     return {x: x + 5 * Math.sin((frame + idleF) / 17 + i), y: y + 7 * Math.sin((frame + idleF) / 12 + i * 1.3), op};
   });
@@ -4723,12 +4790,8 @@ const Closing: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
           </BigNote>
         </div>
       ) : null}
-      {frame >= s3 + 84 ? (
-        <BigNote x={pw(1610, 450).x} y={pw(1610, 450).y} width={520} tilt={3} p={finalP} size={46}>
-          Keep CKB out
-          <br />
-          of the bad things
-        </BigNote>
+      {frame >= s3 + 14 ? (
+        <MetaphorCard x={pw(1600, 450).x} y={pw(1600, 450).y} width={560} p={finalP} idle={idleF} />
       ) : null}
     </div>
   );
