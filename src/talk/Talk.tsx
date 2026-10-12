@@ -25,7 +25,7 @@ import {
   SERIF,
   STICKY,
 } from "./stage";
-import {BEAT_COUNT, TOTAL_FRAMES, beatOf, beatStart, stepStart} from "./timing";
+import {BEAT_COUNT, TOTAL_FRAMES, beatOf, beatStart, stepHold, stepStart} from "./timing";
 
 export type TalkProps = {
   onlyBeat?: number;
@@ -1965,10 +1965,10 @@ const ToolFile: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
 const CRATE = {x: 3500, y: 5270};
 const CRATE_MOUTH = {x: 3500, y: 4990};
 const FEATURES = [
-  {title: "Contracts own their Tx Assemblers", lines: ["Contracts own", "their Tx Assemblers"], x: 2910, y: 4830, tilt: -5, spin: -1},
+  {title: "Contract and Assembler combination", lines: ["Contract and Assembler", "combination"], x: 2910, y: 4830, tilt: -5, spin: -1},
   {title: "AI skills for non-coders", lines: ["AI skills", "for non-coders"], x: 3300, y: 4560, tilt: -2, spin: -1},
-  {title: "Inclusive verification tree", lines: ["Inclusive", "verification tree"], x: 3700, y: 4560, tilt: 3, spin: 1},
-  {title: "First SSRI-integrated contract framework", lines: ["First SSRI-integrated", "contract framework"], x: 4090, y: 4830, tilt: 5, spin: 1},
+  {title: "Contract verification tree", lines: ["Contract", "verification tree"], x: 3700, y: 4560, tilt: 3, spin: 1},
+  {title: "WASM and SSRI Integration", lines: ["WASM and SSRI", "Integration"], x: 4090, y: 4830, tilt: 5, spin: 1},
 ];
 
 /** Frame each feature leaves the crate (step k + 1, a few frames after the click). */
@@ -2048,18 +2048,26 @@ const FeatureIcon: React.FC<{k: number}> = ({k}) => {
         </>
       ) : (
         <>
-          {[0, 1, 2].flatMap((i) =>
-            [0, 1].map((j) => <rect key={`${i}-${j}`} x={10 + i * 24} y={20 + j * 24} width={24} height={24} fill="none" {...ink} />),
-          )}
-          <line x1={10} y1={20} x2={34} y2={44} stroke={INK} strokeWidth={1.8} opacity={0.6} />
-          <line x1={58} y1={44} x2={82} y2={68} stroke={INK} strokeWidth={1.8} opacity={0.6} />
-          <line x1={82} y1={44} x2={96} y2={44} stroke={INK} strokeWidth={3} />
-          <rect x={96} y={34} width={22} height={20} rx={3} fill={INK} />
-          <line x1={118} y1={39} x2={130} y2={39} stroke={INK} strokeWidth={3} strokeLinecap="round" />
-          <line x1={118} y1={49} x2={130} y2={49} stroke={INK} strokeWidth={3} strokeLinecap="round" />
-          <line x1={107} y1={54} x2={107} y2={64} stroke={INK} strokeWidth={1.5} />
-          <rect x={88} y={64} width={40} height={18} rx={3} fill={CINNABAR} />
-          <text x={108} y={77} textAnchor="middle" fontFamily={MONO} fontWeight={700} fontSize={11} fill={PAPER} letterSpacing={1}>
+          {/* WebAssembly-style badge: a square with the top notch and WASM lettering. */}
+          <path d="M 4 24 L 15 24 A 8 8 0 0 0 31 24 L 42 24 L 42 62 L 4 62 Z" fill={INK} />
+          <text x={23} y={56} textAnchor="middle" fontFamily={MONO} fontWeight={800} fontSize={10.5} fill={PAPER} letterSpacing={0.5}>
+            WASM
+          </text>
+          <line x1={42} y1={50} x2={52} y2={50} stroke={INK} strokeWidth={2} strokeDasharray="2.5 2.5" />
+          <g transform="translate(46 26) scale(0.72)">
+            {[0, 1, 2].flatMap((i) =>
+              [0, 1].map((j) => <rect key={`${i}-${j}`} x={10 + i * 24} y={20 + j * 24} width={24} height={24} fill="none" {...ink} />),
+            )}
+            <line x1={10} y1={20} x2={34} y2={44} stroke={INK} strokeWidth={1.8} opacity={0.6} />
+            <line x1={58} y1={44} x2={82} y2={68} stroke={INK} strokeWidth={1.8} opacity={0.6} />
+          </g>
+          <line x1={105} y1={57.7} x2={112} y2={57.7} stroke={INK} strokeWidth={3} />
+          <rect x={112} y={46} width={20} height={20} rx={3} fill={INK} />
+          <line x1={132} y1={51} x2={142} y2={51} stroke={INK} strokeWidth={3} strokeLinecap="round" />
+          <line x1={132} y1={61} x2={142} y2={61} stroke={INK} strokeWidth={3} strokeLinecap="round" />
+          <line x1={122} y1={34} x2={122} y2={46} stroke={INK} strokeWidth={1.5} />
+          <rect x={102} y={16} width={40} height={18} rx={3} fill={CINNABAR} />
+          <text x={122} y={29} textAnchor="middle" fontFamily={MONO} fontWeight={700} fontSize={11} fill={PAPER} letterSpacing={1}>
             SSRI
           </text>
         </>
@@ -2288,7 +2296,7 @@ const CinnabarBox: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
                   marginTop: 10,
                   fontFamily: MARKER,
                   fontWeight: 800,
-                  fontSize: k === 3 ? 29 : 33,
+                  fontSize: k === 3 || k === 0 ? 29 : 33,
                   lineHeight: 1.05,
                   color: INK,
                 }}
@@ -3526,7 +3534,7 @@ const JumpView: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   );
 };
 
-/** Beat 14: Inclusive verification tree. World coords around CAMERAS[13]. Root, a tree that grows, then three paths lit one by one. */
+/** Beat 14: Contract verification tree. World coords around CAMERAS[13]. Root, a tree that grows, then three paths lit one by one. */
 const TR_SEED_FROM = {x: 3700, y: 4560};
 const TR_SEED_TO = {x: 720, y: 8420};
 const TR_ROOT = {x: 1580, y: 8220};
@@ -3916,7 +3924,102 @@ const FW_CALC = {w: 270, h: 130};
 const FW_HUB = fw(820, 415);
 const FW_GH = {...fw(1330, 200), w: 340, h: 150};
 const FW_CKB = {...fw(1330, 710), w: 340, h: 150};
-const FW_STICKY = fw(1580, 445);
+const FW_STICKY = fw(1590, 515);
+/** GitHub's either/or fork: a target-arch selector right of the GitHub card, then Non-WASM (native) above and WASM (wasm32) below. */
+const FW_JCT = fw(1600, 200);
+const FW_ARCH = [
+  {...fw(1795, 122), w: 210, h: 72, name: "Non-WASM", arch: "native"},
+  {...fw(1795, 296), w: 210, h: 72, name: "WASM", arch: "wasm32"},
+];
+const fwArchD = (k: number): string => {
+  const a = {x: FW_JCT.x + 26, y: FW_JCT.y};
+  const e = {x: FW_ARCH[k].x - FW_ARCH[k].w / 2, y: FW_ARCH[k].y};
+  return `M ${a.x} ${a.y} C ${a.x + 40} ${a.y}, ${e.x - 44} ${e.y}, ${e.x} ${e.y}`;
+};
+/** Which branch the selector points at: 0 = Non-WASM, 1 = WASM. Idle alternates it every 120 frames, starting (idle 0) on WASM. */
+const fwArchSel = (frame: number, sA: number, next: number, idleF: number): number => {
+  const flip = eased(frame, sA + 62, sA + 74);
+  if (frame < next - 1 || idleF <= 0) {
+    return flip;
+  }
+  const t = idleF % 240;
+  const e = (u: number) => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, u)));
+  return t < 100 ? 1 : t < 114 ? 1 - e((t - 100) / 14) : t < 220 ? 0 : e((t - 220) / 14);
+};
+const FwArch: React.FC<{frame: number; fps: number; sA: number; idleF: number}> = ({frame, fps, sA, idleF}) => {
+  const hold = stepHold(14, 3);
+  const disc = slam(frame, fps, sA, 2);
+  const draw = eased(frame, sA + 8, sA + 34);
+  const pill = (k: number) => slam(frame, fps, sA, 24 + k * 8);
+  const lit = eased(frame, sA + 36, sA + 46);
+  const sel = frame > hold ? 1 : fwArchSel(frame, sA, hold + 1, idleF);
+  const w = (k: number) => lit * (k === 1 ? sel : 1 - sel);
+  const ang = interpolate(sel, [0, 1], [-38, 38]);
+  return (
+    <>
+      <svg width={1} height={1} style={{position: "absolute", left: 0, top: 0, overflow: "visible"}}>
+        {draw > 0 ? (
+          <path d={`M ${FW_JCT.x - 72} ${FW_JCT.y} L ${FW_JCT.x - 26} ${FW_JCT.y}`} fill="none" stroke={INK} strokeWidth={6} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - Math.min(1, draw * 3)} />
+        ) : null}
+        {draw > 0
+          ? [0, 1].map((k) => (
+              <g key={k} opacity={1 - 0.7 * (lit - w(k))}>
+                <path d={fwArchD(k)} fill="none" stroke={INK} strokeWidth={3 + 3 * w(k)} strokeLinecap="round" pathLength={1} strokeDasharray={draw < 1 ? 1 : w(k) > 0.5 ? "1 0" : "0.035 0.03"} strokeDashoffset={draw < 1 ? 1 - draw : 0} />
+              </g>
+            ))
+          : null}
+        {disc > 0 ? (
+          <g transform={`translate(${FW_JCT.x} ${FW_JCT.y}) scale(${Math.min(1.15, Math.max(0, disc))})`}>
+            <circle r={27} fill={CARD} stroke={INK} strokeWidth={4} />
+            <g transform={`rotate(${ang})`}>
+              <line x1={-6} y1={0} x2={34} y2={0} stroke={CINNABAR} strokeWidth={7} strokeLinecap="round" />
+              <circle cx={34} cy={0} r={6} fill={CINNABAR} />
+            </g>
+            <circle r={7} fill={INK} />
+          </g>
+        ) : null}
+      </svg>
+      {disc > 0 ? (
+        <div style={{position: "absolute", left: FW_JCT.x - 70, top: FW_JCT.y + 112, transform: "translate(-50%, -50%) rotate(-2deg)", opacity: Math.min(1, Math.max(0, disc * 2.5)), fontFamily: MONO, fontWeight: 700, fontSize: 17, letterSpacing: "0.12em", color: QUIET_INK, whiteSpace: "nowrap"}}>
+          TARGET ARCH ↗
+        </div>
+      ) : null}
+      {FW_ARCH.map((a, k) => {
+        const p = pill(k);
+        if (frame < sA + 24 + k * 8) {
+          return null;
+        }
+        const on = w(k);
+        return (
+          <div
+            key={k}
+            style={{
+              position: "absolute",
+              left: a.x,
+              top: a.y,
+              width: a.w,
+              height: a.h,
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              background: CARD,
+              border: on > 0.5 ? `4px solid ${INK}` : `3px dashed rgba(26,26,26,0.55)`,
+              borderRadius: 6,
+              boxShadow: `0 ${4 + 10 * on}px ${10 + 14 * on}px rgba(26,26,26,${0.08 + 0.12 * on})`,
+              transform: `translate(-50%, -50%) translateY(${(1 - Math.min(1, p)) * -36}px) scale(${interpolate(p, [0, 1], [1.2, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"}) * (0.94 + 0.06 * on)}) rotate(${k === 0 ? -1.5 : 1.5}deg)`,
+              opacity: Math.min(1, Math.max(0, p * 2.5)) * (1 - 0.58 * (lit - on)),
+            }}
+          >
+            <div style={{fontFamily: SANS, fontWeight: 800, fontSize: 32, lineHeight: "34px", color: INK, whiteSpace: "nowrap"}}>{a.name}</div>
+            <div style={{fontFamily: MONO, fontWeight: 700, fontSize: 16, letterSpacing: "0.1em", color: on > 0.5 ? CINNABAR : QUIET_INK, whiteSpace: "nowrap"}}>{a.arch}</div>
+          </div>
+        );
+      })}
+    </>
+  );
+};
 const FW_TAG_DEFAULT = fw(990, 307);
 const FW_TAG_SSRI = fw(990, 553);
 type FwPt = {x: number; y: number};
@@ -4069,8 +4172,9 @@ const Framework: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   }
   const s1 = stepStart(14, 1);
   const s2 = stepStart(14, 2);
-  const s3 = stepStart(14, 3);
-  const s4 = stepStart(14, 4);
+  const sA = stepStart(14, 3);
+  const s3 = stepStart(14, 4);
+  const s4 = stepStart(14, 5);
   const out = deskDrift(frame, next, {x: 1, y: -0.35});
   const stickyOut = deskDrift(frame, next + 3, {x: 1, y: 0.3});
   // Step 0: the 04 feature card flies down and shrinks into the headline spot.
@@ -4090,7 +4194,7 @@ const Framework: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   const drawA = eased(frame, s2 + 6, s2 + 46);
   const ghP = slam(frame, fps, s2, 40);
   const defaultP = slam(frame, fps, s2, 52);
-  // Step 3: the SSRI path draws to the CKB chain and the switch flips on.
+  // Step 3: GitHub forks into Non-WASM / WASM (FwArch). Step 4: the SSRI path draws to the CKB chain and the switch flips on.
   const drawB = eased(frame, s3 + 4, s3 + 50);
   const ckbP = slam(frame, fps, s3, 44);
   const ssriP = slam(frame, fps, s3, 8);
@@ -4223,6 +4327,7 @@ const Framework: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
               GitHub
             </FwDest>
           ) : null}
+          {frame >= sA ? <FwArch frame={frame} fps={fps} sA={sA} idleF={idleF} /> : null}
           {frame >= s3 + 44 ? (
             <FwDest d={FW_CKB} p={ckbP} rot={-1} brand="ckb">
               CKB chain
