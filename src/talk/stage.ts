@@ -39,9 +39,10 @@ export const CAMERAS: Cam[] = [
   {x: 4400, y: 6380, scale: 0.9}, // Beat 13: world spot for the 02 card -> headline; the high-jump stage is a screen-space layer (JumpView)
   {x: 1520, y: 8000, scale: 0.86}, // Contract verification tree: root + branches around the lower centre
   {x: 3300, y: 8040, scale: 1}, // Beat 15: scaffold framework left of centre, room on the right for the FIRST stamp and the sticky
-  {x: 3300, y: 9400, scale: 1}, // Beat 16: an empty stretch of desk below the page 15 framework; world = screen + (2340, 8860)
-  {x: 3300, y: 10600, scale: 1}, // Beat 17: How to use Cinnabar. Clean desk below page 16; world = screen + (2340, 10060)
-  {x: 3300, y: 11800, scale: 1}, // Beat 18: Thank you. Clean desk below page 17
+  {x: 3300, y: 9400, scale: 1}, // Beat 16: How to use Cinnabar. An empty stretch of desk below the page 15 framework; world = screen + (2340, 8860)
+  {x: 3300, y: 10600, scale: 1}, // Beat 17: The meaning of Cinnabar. Clean desk below page 16; world = screen + (2340, 10060)
+  {x: 3300, y: 11800, scale: 1}, // Beat 18: Cinnabar photo. Clean desk below page 17; world = screen + (2340, 11260)
+  {x: 3300, y: 13000, scale: 1}, // Beat 19: Thank you. Clean desk below page 18
 ];
 
 /**
@@ -106,7 +107,7 @@ export const COPY: BeatCopy[] = [
   {title: "Success: it's hard to reach", titleSize: 72},
   {title: "", titleSize: 28}, // Beat 8 has no running headline; "But in AI era" is its own layer (AiEra)
   {title: "Most developers build with AI.", titleSize: 68},
-  {title: "The gap is build.", titleSize: 96},
+  {title: "Build stage has gaps.", titleSize: 96},
   {
     title: "Cinnabar.",
     titleSize: 108,
@@ -116,7 +117,8 @@ export const COPY: BeatCopy[] = [
   {title: "AI skills for non-coders", titleSize: 76},
   {title: "Contract verification tree", titleSize: 72},
   {title: "WASM and SSRI Integration", titleSize: 68},
-  {title: "The meaning of Cinnabar", titleSize: 76},
   {title: "How to use Cinnabar", titleSize: 84},
+  {title: "The meaning of Cinnabar", titleSize: 76},
+  {title: "", titleSize: 28}, // Beat 18 is the photo page: no headline
   {title: "Thank you.", titleSize: 260},
 ];

@@ -1,6 +1,7 @@
 import React from "react";
 import {
   AbsoluteFill,
+  Img,
   Easing,
   Sequence,
   interpolate,
@@ -26,6 +27,7 @@ import {
   STICKY,
 } from "./stage";
 import {BEAT_COUNT, TOTAL_FRAMES, beatOf, beatStart, stepHold, stepStart} from "./timing";
+import {CINNABAR_PHOTO} from "./cinnabarPhoto";
 
 export type TalkProps = {
   onlyBeat?: number;
@@ -57,8 +59,8 @@ export const Talk: React.FC<TalkProps> = ({onlyBeat, idle = 0}) => {
   );
 };
 
-/** Beat 17: How to use Cinnabar, as one AI chat window. Screen coords + HT_O. Thread coords are relative to the thread viewport. */
-const HT_O = {x: 2340, y: 10060};
+/** Beat 16: How to use Cinnabar, as one AI chat window. Screen coords + HT_O. Thread coords are relative to the thread viewport. */
+const HT_O = {x: 2340, y: 8860};
 const HT_ASK = "Help me build a blind box project by using Spore protocol";
 const HT_WIN = {x: 90, y: 78, w: 1740, h: 930, bar: 64, input: 100};
 const HT_VIEW = HT_WIN.h - HT_WIN.bar - HT_WIN.input;
@@ -118,16 +120,16 @@ const HtPlate: React.FC<{w: number; h: number; size: number}> = ({w, h, size}) =
 
 const HowTo: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   const idleF = useIdle();
-  const at = beatStart(16);
-  const next = beatStart(17);
+  const at = beatStart(15);
+  const next = beatStart(16);
   if (frame < at || frame >= next + 34) {
     return null;
   }
   const fi = frame + idleF;
-  const s1 = stepStart(16, 1);
-  const s2 = stepStart(16, 2);
-  const s3 = stepStart(16, 3);
-  const s4 = stepStart(16, 4);
+  const s1 = stepStart(15, 1);
+  const s2 = stepStart(15, 2);
+  const s3 = stepStart(15, 3);
+  const s4 = stepStart(15, 4);
   const out = deskDrift(frame, next, {x: -1, y: -0.35});
   const clampP = (v: number) => Math.min(1, Math.max(0, v));
   const popStyle = (p: number, dy = 26): React.CSSProperties => ({
@@ -580,6 +582,7 @@ const Scene: React.FC = () => {
         <Framework frame={frame} fps={fps} />
         <Closing frame={frame} fps={fps} />
         <HowTo frame={frame} fps={fps} />
+        <PhotoPage frame={frame} />
       </div>
       <JumpView frame={frame} fps={fps} />
       <AiEra frame={frame} fps={fps} />
@@ -3288,9 +3291,10 @@ const JumpView: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   const idleF = useIdle();
   const next = beatStart(13);
   const s1 = stepStart(12, 1);
-  const s2 = stepStart(12, 2);
-  const s3 = stepStart(12, 3);
-  const s4 = stepStart(12, 4);
+  // The high-threshold phase is one click: the second try (and the sticky) follows the first fails inside step 1.
+  const s2 = s1 + 156;
+  const s3 = stepStart(12, 2);
+  const s4 = stepStart(12, 3);
   if (frame < s1 || frame >= next + 30) {
     return null;
   }
@@ -3909,7 +3913,7 @@ const Tree: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   );
 };
 
-/** Beat 15: The first SSRI-integrated contract framework. Screen-to-world mapping for CAMERAS[14]: world = screen + (2340, 7500). */
+/** Beat 15: WASM and SSRI Integration. Screen-to-world mapping for CAMERAS[14]: world = screen + (2340, 7500). */
 const fw = (x: number, y: number) => ({x: x + 2340, y: y + 7500});
 const FW_SEED_FROM = {x: 4090, y: 4830};
 const FW_SEED_TO = fw(200, 960);
@@ -3924,7 +3928,7 @@ const FW_CALC = {w: 270, h: 130};
 const FW_HUB = fw(820, 415);
 const FW_GH = {...fw(1330, 200), w: 340, h: 150};
 const FW_CKB = {...fw(1330, 710), w: 340, h: 150};
-const FW_STICKY = fw(1590, 515);
+const FW_STICKY = fw(1600, 480);
 /** GitHub's either/or fork: a target-arch selector right of the GitHub card, then Non-WASM (native) above and WASM (wasm32) below. */
 const FW_JCT = fw(1600, 200);
 const FW_ARCH = [
@@ -4397,12 +4401,10 @@ const Framework: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
       ) : null}
       {frame >= s4 + 6 ? (
         <div style={cssDrift(stickyOut, FW_STICKY.x, FW_STICKY.y)}>
-          <BigNote x={FW_STICKY.x} y={FW_STICKY.y} width={580} tilt={3} p={stickyP} size={46}>
-            The first
+          <BigNote x={FW_STICKY.x} y={FW_STICKY.y} width={560} tilt={3} p={stickyP} size={52}>
+            SSRI and WASM are
             <br />
-            SSRI-integrated
-            <br />
-            contract framework.
+            built-in features.
           </BigNote>
         </div>
       ) : null}
@@ -4410,8 +4412,70 @@ const Framework: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   );
 };
 
-/** Beat 16: The meaning of Cinnabar. World = screen + (2340, 8860) for CAMERAS[15]. */
-const pw = (x: number, y: number) => ({x: x + 2340, y: y + 8860});
+/** Beat 18: a printed photo of a cinnabar specimen, pasted on the desk. No headline. World = screen + (2340, 11260). */
+const PH = {x: 960 + 2340, y: 520 + 11260, w: 880, h: 540, border: 22, foot: 64};
+const PhotoPage: React.FC<{frame: number}> = ({frame}) => {
+  const idleF = useIdle();
+  const at = beatStart(17);
+  const next = beatStart(18);
+  if (frame < at || frame >= next + 34) {
+    return null;
+  }
+  const out = deskDrift(frame, next, {x: 0.6, y: -1});
+  // A gentle settle, not a pop: fade in while drifting down a little and losing a touch of tilt and scale.
+  const u = eased(frame, at + 14, at + 62);
+  const fade = eased(frame, at + 14, at + 40);
+  const tape = eased(frame, at + 58, at + 74);
+  const caption = eased(frame, at + 70, at + 90);
+  // Idle: the shadow breathes very slightly (zero at idle 0).
+  const br = Math.sin((2 * Math.PI * idleF) / 160);
+  const W = PH.w + PH.border * 2;
+  const H = PH.h + PH.border + PH.foot;
+  return (
+    <div style={cssDrift(out, PH.x, PH.y)}>
+      <div
+        style={{
+          position: "absolute",
+          left: PH.x,
+          top: PH.y,
+          width: W,
+          height: H,
+          boxSizing: "border-box",
+          padding: `${PH.border}px ${PH.border}px 0`,
+          background: "linear-gradient(170deg, #FDFBF4, #F3EEDF)",
+          boxShadow: `0 ${18 + 3 * br}px ${40 + 6 * br}px rgba(26,26,26,${0.2 * fade}), 0 2px 4px rgba(26,26,26,${0.14 * fade}), 0 0 0 1px rgba(26,26,26,0.08)`,
+          transform: `translate(-50%, -50%) translateY(${(1 - u) * -26}px) rotate(${-3.6 + 1.6 * u}deg) scale(${1.035 - 0.035 * u})`,
+          opacity: fade,
+        }}
+      >
+        <div style={{position: "relative", width: PH.w, height: PH.h, overflow: "hidden", background: "#141210"}}>
+          <Img src={CINNABAR_PHOTO} style={{display: "block", width: "100%", height: "100%", objectFit: "cover", filter: "saturate(0.84) contrast(0.94) brightness(1.03) sepia(0.1)"}} />
+          {/* Lift the black backdrop into a warm ink tone, soften the corners, and print it with a fine halftone and grain. */}
+          <div style={{position: "absolute", inset: 0, background: "rgba(60,44,30,0.16)", mixBlendMode: "screen"}} />
+          <div style={{position: "absolute", inset: 0, background: "radial-gradient(ellipse 75% 70% at 50% 52%, rgba(0,0,0,0) 55%, rgba(30,22,16,0.4) 100%)"}} />
+          <div style={{position: "absolute", inset: 0, backgroundImage: "radial-gradient(rgba(26,20,14,0.22) 0.9px, transparent 1.3px)", backgroundSize: "4px 4px", mixBlendMode: "multiply", opacity: 0.55}} />
+          <div style={{position: "absolute", inset: 0, boxShadow: "inset 0 0 0 1px rgba(26,26,26,0.35), inset 0 0 18px rgba(0,0,0,0.35)"}} />
+        </div>
+        <div style={{position: "absolute", left: 0, right: 0, bottom: 0, height: PH.foot, display: "flex", alignItems: "center", justifyContent: "center", gap: 18, opacity: caption}}>
+          <span style={{fontFamily: SERIF, fontStyle: "italic", fontWeight: 700, fontSize: 30, color: INK, letterSpacing: "0.01em"}}>Cinnabar</span>
+          <span style={{width: 6, height: 6, borderRadius: "50%", background: CINNABAR}} />
+          <span style={{fontFamily: SERIF, fontWeight: 700, fontSize: 28, color: CINNABAR}}>朱砂</span>
+          <span style={{fontFamily: MONO, fontWeight: 700, fontSize: 18, letterSpacing: "0.14em", color: QUIET_INK}}>HgS</span>
+        </div>
+        {/* Two tape strips over the top corners. */}
+        {[
+          {left: -34, rot: -38},
+          {left: W - 96, rot: 36},
+        ].map((s, i) => (
+          <div key={i} style={{position: "absolute", top: -6, left: s.left, width: 130, height: 34, background: "rgba(242,232,206,0.78)", boxShadow: "0 1px 2px rgba(26,26,26,0.12)", transform: `rotate(${s.rot}deg) scaleX(${tape})`, opacity: tape}} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/** Beat 17: The meaning of Cinnabar. World = screen + (2340, 10060) for CAMERAS[16]. */
+const pw = (x: number, y: number) => ({x: x + 2340, y: y + 10060});
 
 const smudgePath = (r: number, seed: number): string => {
   const n = 14;
@@ -4654,15 +4718,15 @@ const MetaphorCard: React.FC<{x: number; y: number; width: number; p: number; id
 
 const Closing: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
   const idleF = useIdle();
-  const at = beatStart(15);
-  const next = beatStart(16);
+  const at = beatStart(16);
+  const next = beatStart(17);
   if (frame < at || frame >= next + 34) {
     return null;
   }
   const exitD = deskDrift(frame, next, {x: -1, y: -0.6});
-  const s1 = stepStart(15, 1);
-  const s2 = stepStart(15, 2);
-  const s3 = stepStart(15, 3);
+  const s1 = stepStart(16, 1);
+  const s2 = stepStart(16, 2);
+  const s3 = stepStart(16, 3);
   const tSlam = (p: number, from = 1.35) => interpolate(p, [0, 1], [from, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"});
   const R = CL_CENTER;
   // Step 1: the raw rock drops in and its seal is stamped.
@@ -4886,12 +4950,12 @@ const Closing: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
       {/* Stickies. */}
       {frame >= s2 && frame < s3 + 40 ? (
         <div style={cssDrift(noteOut, pw(300, 330).x, pw(300, 330).y)}>
-          <BigNote x={pw(300, 330).x} y={pw(300, 330).y} width={440} tilt={-2} p={smallNoteP} size={40}>
-            In reality,
+          <BigNote x={pw(300, 330).x} y={pw(300, 330).y} width={520} tilt={-2} p={smallNoteP} size={44}>
+            A red mineral that
             <br />
-            cinnabar drives
+            can drive evil away
             <br />
-            evil away.
+            in Chinese tradition.
           </BigNote>
         </div>
       ) : null}
@@ -5405,7 +5469,7 @@ const BuildWall: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
       {frame >= breakAt + 6 ? (
         <div style={cssDrift(noteOut, 1500, 3330)}>
           <BigNote x={1500} y={3330} width={400} tilt={2.5} p={slam(frame, fps, breakAt + 6, 0)} size={46}>
-            Not enough SDKs
+            Not enough mature SDKs
           </BigNote>
         </div>
       ) : null}
@@ -6819,7 +6883,7 @@ const HEADLINE_SLOT: Partial<Record<number, React.CSSProperties>> = {
   5: {left: 64, right: 80, top: 72},
   6: {left: 64, right: 80, top: 72},
   8: {left: 64, right: 80, top: 72},
-  17: {left: 0, right: 0, top: 372, textAlign: "center"},
+  18: {left: 0, right: 0, top: 372, textAlign: "center"},
 };
 
 const Overlay: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
@@ -6836,7 +6900,7 @@ const Overlay: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
       ? 6
       : beat === 3
         ? 20
-        : beat === 17
+        : beat === 18
           ? 34
           : beat >= 4 && beat <= 16
             ? 26
@@ -6917,8 +6981,8 @@ const Overlay: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
               : undefined,
           // Step 5 pull-back: the headline dips out while notes sweep under it, then returns full size.
           opacity:
-            beat === 16
-              ? 1 - eased(frame, stepStart(16, 1), stepStart(16, 1) + 10)
+            beat === 15
+              ? 1 - eased(frame, stepStart(15, 1), stepStart(15, 1) + 10)
               : beat === 3
               ? 1 -
                 linear(frame, stepStart(3, 5), stepStart(3, 5) + 8, 0, 1) +
@@ -6937,8 +7001,8 @@ const Overlay: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
               lineHeight: 0.98,
               paddingBottom: "0.2em",
               marginBottom: "-0.2em",
-              display: beat === 17 ? "inline-block" : undefined,
-              textShadow: beat === 17 ? "0 0 4px rgba(247,246,241,1), 0 0 16px rgba(247,246,241,0.95), 0 0 36px rgba(247,246,241,0.7)" : undefined,
+              display: beat === 18 ? "inline-block" : undefined,
+              textShadow: beat === 18 ? "0 0 4px rgba(247,246,241,1), 0 0 16px rgba(247,246,241,0.95), 0 0 36px rgba(247,246,241,0.7)" : undefined,
               opacity: Math.min(1, Math.max(0, titleP * 1.4)),
               clipPath: `inset(0 ${wipe(titleP)}% 0 0)`,
             }}
