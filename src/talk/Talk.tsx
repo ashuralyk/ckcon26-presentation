@@ -1344,11 +1344,12 @@ const Arrows: React.FC<{frame: number}> = ({frame}) => {
   if (frame < at) {
     return null;
   }
-  // Step 4 (Success): the arc back to Discover turns red and pulses once; it returns to ink in beat 5.
+  // Step 4 (Success): the arc back to Discover turns red and pulses once.
+  // Step 5 (pull back): it eases back to ink in step with the camera glide (32 frames), like the other arcs.
   const loopAt = stepStart(3, 4) + 40;
   const red =
     linear(frame, loopAt, loopAt + 10, 0, 1) *
-    (1 - linear(frame, beatStart(4), beatStart(4) + 12, 0, 1));
+    (1 - eased(frame, stepStart(3, 5), stepStart(3, 5) + 32));
   const pulse = Math.sin(Math.PI * linear(frame, loopAt, loopAt + 14, 0, 1));
   return (
     <svg width={1} height={1} style={{position: "absolute", left: 0, top: 0, overflow: "visible", opacity: 1 - 0.6 * buildFocus(frame)}}>
@@ -6872,6 +6873,70 @@ const BigNote: React.FC<{
   </div>
 );
 
+/** Beat 2: "The strongest bull market" as a torn newspaper clipping pasted on the desk, with a red-pen underline. */
+const BULL_TORN = (() => {
+  // Deterministic ragged edges (percent coordinates) for a hand-torn clipping.
+  const j = (i: number, k: number) => Math.abs(Math.sin(i * 12.9898 + k * 78.233) * 43758.5453) % 1;
+  const top = Array.from({length: 19}, (_, i) => `${(i / 18) * 100}% ${1.2 + 2.6 * j(i, 1)}%`);
+  const right = Array.from({length: 9}, (_, i) => `${98.6 - 1.6 * j(i, 2)}% ${(i / 8) * 100}%`);
+  const bottom = Array.from({length: 19}, (_, i) => `${100 - (i / 18) * 100}% ${98.8 - 3.4 * j(i, 3)}%`);
+  const left = Array.from({length: 9}, (_, i) => `${1.4 * j(i, 4)}% ${100 - (i / 8) * 100}%`);
+  return `polygon(${[...top, ...right, ...bottom, ...left].join(", ")})`;
+})();
+const BullClipping: React.FC<{x: number; y: number; tilt: number; p: number; ul: number}> = ({x, y, tilt, p, ul}) => {
+  const q = Math.min(1, Math.max(0, p));
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: x,
+        top: y,
+        width: 520,
+        transform: `translate(-50%, -50%) translateY(${(1 - q) * -34}px) rotate(${tilt + (1 - q) * 7}deg) scale(${interpolate(p, [0, 1], [1.14, 1], {extrapolateLeft: "clamp", extrapolateRight: "extend"})})`,
+        opacity: Math.min(1, q * 3),
+        filter: `drop-shadow(0 ${10 * q}px ${14 * q}px rgba(26,26,26,0.2))`,
+      }}
+    >
+      <div
+        style={{
+          clipPath: BULL_TORN,
+          background: "linear-gradient(175deg, #F6F1E3, #ECE4CF)",
+          padding: "26px 34px 26px",
+          backgroundImage: "radial-gradient(rgba(26,26,26,0.06) 0.8px, transparent 1.2px), linear-gradient(175deg, #F6F1E3, #ECE4CF)",
+          backgroundSize: "5px 5px, 100% 100%",
+        }}
+      >
+        <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: MONO, fontWeight: 700, fontSize: 15, letterSpacing: "0.18em", color: QUIET_INK}}>
+          <span>
+            <span style={{color: CINNABAR}}>▲</span> MARKETS
+          </span>
+          <span>RGB++ · CKB</span>
+        </div>
+        <div style={{marginTop: 8, borderTop: `3px solid ${INK}`, borderBottom: `1px solid ${INK}`, height: 4}} />
+        <div style={{position: "relative", marginTop: 14, fontFamily: SERIF, fontWeight: 900, fontSize: 60, lineHeight: 0.96, letterSpacing: "-0.03em", color: INK}}>
+          The strongest
+          <br />
+          <span style={{position: "relative", display: "inline-block"}}>
+            bull market
+            <svg width={340} height={26} viewBox="0 0 340 26" style={{position: "absolute", left: -6, bottom: -18, overflow: "visible"}}>
+              <path d="M 4 14 C 80 8, 170 18, 250 10 S 320 12, 334 8" fill="none" stroke={CINNABAR} strokeWidth={6} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - ul} />
+            </svg>
+          </span>
+        </div>
+        <div style={{display: "flex", gap: 16, marginTop: 26}}>
+          {[0, 1, 2].map((c) => (
+            <div key={c} style={{flex: 1}}>
+              {[1, 0.92, 0.97, 0.7].map((w, i) => (
+                <div key={i} style={{height: 5, width: `${w * 100}%`, marginTop: i === 0 ? 0 : 7, borderRadius: 2, background: INK, opacity: 0.22}} />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /** Shared lower-left headline slot. Individual beats can override it below. */
 const DEFAULT_HEADLINE_SLOT: React.CSSProperties = {left: 64, right: 80, bottom: 64};
 
@@ -7110,17 +7175,7 @@ const Overlay: React.FC<{frame: number; fps: number}> = ({frame, fps}) => {
         </div>
       ) : null}
       {(beat === 1 && frame >= bullAt) || rgbLeaving ? (
-        <BigNote
-          x={620 - 1000 * rgbLeave}
-          y={440 - 260 * rgbLeave}
-          width={460}
-          tilt={-3 - 10 * rgbLeave}
-          p={bullNote}
-        >
-          The strongest
-          <br />
-          bull market
-        </BigNote>
+        <BullClipping x={585 - 1000 * rgbLeave} y={425 - 260 * rgbLeave} tilt={-3 - 10 * rgbLeave} p={bullNote} ul={beat === 1 ? eased(frame, bullAt + 14, bullAt + 32) : 1} />
       ) : null}
       {(beat === 1 && frame >= peopleAt) || rgbLeaving ? (
         <BigNote
