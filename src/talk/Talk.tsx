@@ -1100,9 +1100,11 @@ const rgbPoint = (fraction: number): {x: number; y: number} => {
 const GONE_ORDER = [7, 12, 2, 16, 9, 0, 14, 5, 11, 3, 17, 8, 1, 13, 6, 10, 15, 4];
 
 /** Frames after beat 3 step 1 starts when the n-th person begins to leave. Each gap is 0.86x the last. */
+/** Beat 3 crowd pace: 1 was the original timing; 0.82 makes people leave about 18% sooner and faster. */
+const GONE_PACE = 0.82;
 const goneStart = (rank: number): number => {
-  let t = 12;
-  let gap = 18;
+  let t = 12 * GONE_PACE;
+  let gap = 18 * GONE_PACE;
   for (let i = 0; i < rank; i++) {
     t += gap;
     gap *= 0.86;
@@ -1114,7 +1116,7 @@ const goneStart = (rank: number): number => {
 const goneAmount = (frame: number, index: number): number => {
   const rank = GONE_ORDER.indexOf(index);
   const at = stepStart(2, 1) + goneStart(rank);
-  const length = interpolate(rank, [0, GONE_ORDER.length - 1], [20, 10]);
+  const length = interpolate(rank, [0, GONE_ORDER.length - 1], [20, 10]) * GONE_PACE;
   return interpolate(frame, [at, at + length], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",

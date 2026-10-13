@@ -10,7 +10,7 @@ export const BEAT_FRAMES = 90;
 export const STEPS: number[][] = [
   [24, 70, 90, 120], // 1  Title: empty desk, then the case file drops in, then the one-line sentence + red-pen highlight, then the "why it exists" note springs out
   [90, 70, 80], // 2  After RGB++: headline, curve + bull sticky, crowd + discovered sticky
-  [90, 160, 100], // 3  But people go away: close-up + headline, crowd leaves (accelerating), because we were not ready
+  [90, 132, 100], // 3  But people go away: close-up + headline, crowd leaves (accelerating), because we were not ready
   [170, 75, 75, 75, 85, 80], // 4  Developer Journey Circle: headline + circle draws, Discover, Learn, Build, Success notes, pull back to all four
   [90, 100, 80], // 5  Learn: zoom on Learn + headline, doc pile + confused figure, sticky + BREAK stamp
   [90, 110, 80], // 6  Build: zoom on Build + headline, wall + figure + short ladder, sticky + crack
